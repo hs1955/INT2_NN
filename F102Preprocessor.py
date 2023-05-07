@@ -14,9 +14,9 @@ import shutil
 # Create train, valid and test directories to sort dataset into.
 def makePartitionDirs():
     for i in range(1, 103):
-        os.makedirs("data/102flowers/train/" + str(i))
-        os.makedirs("data/102flowers/test/" + str(i))
-        os.makedirs("data/102flowers/valid/" + str(i))
+        os.makedirs("data/102flowers/train/" + str(i), exist_ok=True)
+        os.makedirs("data/102flowers/test/" + str(i), exist_ok=True)
+        os.makedirs("data/102flowers/valid/" + str(i), exist_ok=True)
 
 
 # Distribute dataset into train, valid and test directories according to setid.mat specifications.
@@ -64,7 +64,7 @@ sortedPath = "data/102flowers"
 setid = scio.loadmat(f"data/setid.mat")
 imageLabels = scio.loadmat(f"data/imagelabels.mat")
 # Call these if you don't have the directories set up as needed.
-# makePartitionDirs()
+makePartitionDirs()
 partitionData()
 trainingData = datasets.ImageFolder(
     root="data/102flowers/train", transform=trainTransforms
