@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import torch.utils.data
 
 # from torch.utils.data import DataLoader
 
@@ -114,13 +115,13 @@ testingData = datasets.ImageFolder(
 # %%
 # Data loaders for use as input.
 trainDataLoader = torch.utils.data.DataLoader(
-    trainingData, batchSize=batchSize, shuffle=True
+    trainingData, batch_size=batchSize, shuffle=True
 )
 validDataLoader = torch.utils.data.DataLoader(
-    validationData, batchSize=batchSize, shuffle=False
+    validationData, batch_size=batchSize, shuffle=False
 )
 testDataLoader = torch.utils.data.DataLoader(
-    testingData, batchSize=batchSize, shuffle=False
+    testingData, batch_size=batchSize, shuffle=False
 )
 
 
@@ -131,15 +132,22 @@ def showImage(image):
     plt.show()
 
 
+# %%
 # Absolute nightmare to solve and figure out
 trainClassIndexes = {v: k for k, v in trainingData.class_to_idx.items()}
 validClassIndexes = {v: k for k, v in validationData.class_to_idx.items()}
 testClassIndexes = {v: k for k, v in testingData.class_to_idx.items()}
-dataIter = iter(trainDataLoader)
-images, labels = next(dataIter)
-showImage(torchvision.utils.make_grid(images))
-print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(batchSize)))
 
+
+# %%
+def printSampleImages():
+    dataIter = iter(trainDataLoader)
+    images, labels = next(dataIter)
+    showImage(torchvision.utils.make_grid(images))
+    print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(batchSize)))
+
+
+# %%
 ### * ALL THE CODE BELOW IS FROM A DIFFERENT ARTICLE
 """
 # # %%
@@ -359,19 +367,19 @@ print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(batchSize))
 # %%
 # The CNN Network
 # Define a convolution neural network
-class Network(nn.Module):
+class ConvNet(nn.Module):
     def __init__(self):
-        super(Network, self).__init__()
+        super(ConvNet, self).__init__()
 
         self.conv1 = nn.Conv2d(
             in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=1
-        )
-        self.bn1 = nn.BatchNorm2d(num_features=12)
+        )  # Perform the learning - there's 12 features to spot I think
+        self.bn1 = nn.BatchNorm2d(num_features=12)  # Normalise the data
         self.conv2 = nn.Conv2d(
             in_channels=12, out_channels=12, kernel_size=5, stride=1, padding=1
         )
         self.bn2 = nn.BatchNorm2d(num_features=12)
-        self.pool = nn.MaxPool2d(2, 2)
+        self.pool = nn.MaxPool2d(2, 2)  # Shrinks the data size by a factor of 2
         self.conv4 = nn.Conv2d(
             in_channels=12, out_channels=24, kernel_size=5, stride=1, padding=1
         )
@@ -380,27 +388,42 @@ class Network(nn.Module):
             in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=1
         )
         self.bn5 = nn.BatchNorm2d(num_features=24)
-        self.fc1 = nn.Linear(24 * 10 * 10, 10)
+        # self.fc1 = nn.Linear(24 * 10 * 10, 10)
+        self.fc1 = nn.Linear(
+            in_features=16 * 24 * 58 * 58, out_features=102
+        )  # Perform the classification
 
     def forward(self, input):
+        print(input.shape)  # torch.Size([16, 3, 128, 128])
         output = F.relu(self.bn1(self.conv1(input)))
+        print(output.shape)  # torch.Size([16, 12, 126, 126])
         output = F.relu(self.bn2(self.conv2(output)))
+        print(output.shape)  # torch.Size([16, 12, 124, 124])
         output = self.pool(output)
+        print(output.shape)  # torch.Size([16, 12, 62, 62])
         output = F.relu(self.bn4(self.conv4(output)))
+        print(output.shape)  # torch.Size([16, 24, 60, 60])
         output = F.relu(self.bn5(self.conv5(output)))
-        output = output.view(-1, 24 * 10 * 10)
+        print(output.shape)  # torch.Size([16, 24, 58, 58])
+        # output = output.view(-1, 24 * 10 * 10)
+        output = output.view(-1, 16 * 24 * 58 * 58)
+        print(output.shape)  # torch.Size([1, 1291776])
         output = self.fc1(output)
+        print(output.shape)  # torch.Size([1, 102])
 
         return output
 
 
 # Instantiate a neural network model
-model = Network()
+model = ConvNet()
 
 # %%
 # Define the loss function with Classification Cross-Entropy loss and an optimizer with Adam optimizer
 loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learnRate, weight_decay=weightDecay)
+
+# Alternative optimizer
+# optimizer = torch.optim.SGD(model.parameters(), lr=learnRate, weight_decay=weightDecay)
 
 
 # %%
@@ -444,21 +467,27 @@ def train(num_epochs):
     model.to(device)
 
     for epoch in range(num_epochs):  # loop over the dataset multiple times
+        # Evaluation and Training of the Dataset
+        model.train()
         running_loss = 0.0
         running_acc = 0.0
 
         for i, (images, labels) in enumerate(trainDataLoader, 0):
-            # get the inputs
+            # Get the inputs
+            # Documentation on Variable: https://sebarnold.net/tutorials/beginner/examples_autograd/two_layer_net_autograd.html
             images = torch.autograd.Variable(images.to(device))
             labels = torch.autograd.Variable(labels.to(device))
 
-            # zero the parameter gradients
+            # Zero the parameter gradients
             optimizer.zero_grad()
             # predict classes using images from the training set
-            outputs = model(images)
+            outputs = model(images).squeeze()
+
+            # Process outputs to get the weights relevant to the labels
+
             # compute the loss based on model output and real labels
             loss = loss_fn(outputs, labels)
-            # backpropagate the loss
+            # Back-propagate the loss
             loss.backward()
             # adjust parameters based on the calculated gradients
             optimizer.step()
@@ -510,7 +539,7 @@ def testBatch():
 
 
 # %%
-if __name__ == "__main__":
+def trainOurModel():
     # Let's build our model
     train(5)
     print("Finished Training")
@@ -519,7 +548,7 @@ if __name__ == "__main__":
     testAccuracy()
 
     # Let's load the model we just created and test the accuracy per label
-    model = Network()
+    model = ConvNet()
     path = "myFirstModel.pth"
     model.load_state_dict(torch.load(path))
 
@@ -548,3 +577,8 @@ def testClasses():
             "Accuracy of %5s : %2d %%"
             % (testClassIndexes[i], 100 * class_correct[i] / class_total[i])
         )
+
+
+# %%
+# Begin the training
+trainOurModel()
