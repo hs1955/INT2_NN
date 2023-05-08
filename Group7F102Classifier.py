@@ -35,6 +35,7 @@ import scipy.io as scio
 # Hyperparameters
 batchSize = 16
 
+
 # %%
 # Create train, valid and test directories to sort dataset into.
 def makePartitionDirs():
@@ -42,8 +43,9 @@ def makePartitionDirs():
         os.makedirs("data/102flowers/train/" + str(i), exist_ok=True)
         os.makedirs("data/102flowers/test/" + str(i), exist_ok=True)
         os.makedirs("data/102flowers/valid/" + str(i), exist_ok=True)
-    
-# %%        
+
+
+# %%
 # Distribute dataset into train, valid and test directories according to setid.mat specifications.
 def partitionData(imageLabels, setid, sortedPath, dataPath):
     for i in range(len(imageLabels["labels"][0])):
@@ -63,6 +65,8 @@ def partitionData(imageLabels, setid, sortedPath, dataPath):
         shutil.copy(
             os.path.join(dataPath, filename), os.path.join(targetFolder, filename)
         )
+
+
 # %%
 # Commonly-used normalisation values across numerous NNs like Resnet18 and ImageNet
 mean = [0.485, 0.456, 0.406]
@@ -75,14 +79,14 @@ trainTransforms = transforms.Compose(
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize(mean, std), 
+        transforms.Normalize(mean, std),
     ]
 )
 testTransforms = validTransforms = transforms.Compose(
     [
         transforms.Resize(160),
         transforms.ToTensor(),
-        transforms.Normalize(mean, std), 
+        transforms.Normalize(mean, std),
     ]
 )
 
@@ -107,28 +111,34 @@ testingData = datasets.ImageFolder(
 # %%
 # Data loaders for use as input.
 trainDataLoader = torch.utils.data.DataLoader(
-    trainingData, batch_size= batchSize, shuffle=True
+    trainingData, batch_size=batchSize, shuffle=True
 )
 validDataLoader = torch.utils.data.DataLoader(
-    validationData, batch_size= batchSize, shuffle=False
+    validationData, batch_size=batchSize, shuffle=False
 )
 testDataLoader = torch.utils.data.DataLoader(
-    testingData, batch_size= batchSize, shuffle=False
+    testingData, batch_size=batchSize, shuffle=False
 )
+
 
 # %%
 def showImage(image):
     npImage = image.numpy()
-    plt.imshow(np.transpose(npImage, (1,2,0)))
+    plt.imshow(np.transpose(npImage, (1, 2, 0)))
     plt.show()
 
-classIndexes = {v:k for k,v in trainingData.class_to_idx.items()} #Absolute nightmare to solve and figure out
+
+classIndexes = {
+    v: k for k, v in trainingData.class_to_idx.items()
+}  # Absolute nightmare to solve and figure out
 dataIter = iter(trainDataLoader)
 images, labels = next(dataIter)
 showImage(torchvision.utils.make_grid(images))
-print(' '.join(f'{classIndexes[int(labels[j])]}' for j in range(batchSize)))
+print(" ".join(f"{classIndexes[int(labels[j])]}" for j in range(batchSize)))
 
-# %%
+### * ALL THE CODE BELOW IS FROM A DIFFERENT ARTICLE
+"""
+# # %%
 # # The CNN Network
 # class Net(nn.Module):
 #     def __init__(self, img_size=256):
@@ -207,6 +217,140 @@ print(' '.join(f'{classIndexes[int(labels[j])]}' for j in range(batchSize)))
 # net = Net()
 # net
 
+# # %%
+# # See the learnable parameters of our model
+# params = list(net.parameters())
+# print(len(params))
+# print(params[0].size())  # conv1's .weight
+
+# # %%
+# # Generate a random 32x32 image, what the models wants
+# input = torch.randn(1, 1, 32, 32)
+# out = net(input)
+# print(out)
+
+# # %%
+# # Zero the gradient buffers of all parameters and backprops with random gradients
+# net.zero_grad()
+# out.backward(torch.randn(1, 10))
+
+# # %%
+# # Does this device have a GPU?
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+# # Assuming that we are on a CUDA machine, this should print a CUDA device:
+# print(device)
+
+# # Use the GPU if its there, otherwise use the CPU
+# net.to(device)
+
+# # %%
+# # Loss function
+# criterion = nn.CrossEntropyLoss()
+# optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+
+# # %%
+# # Train the Network
+# for epoch in range(2):  # loop over the dataset multiple times
+#     running_loss = 0.0
+#     for i, data in enumerate(trainDataLoader, 0):
+#         # Get the inputs; data is a list of [inputs, labels] # inputs, labels = data
+#         # And send all the inputs and targets at every step to the chosen device
+#         inputs, labels = data[0].to(device), data[1].to(device)
+
+#         # zero the parameter gradients
+#         optimizer.zero_grad()
+
+#         # forward + backward + optimize
+#         outputs = net(inputs)  # This is the Forward Pass
+#         loss = criterion(outputs, labels)
+#         loss.backward()  # This is the Backward Pass
+#         optimizer.step()  # This is the optimizer
+
+#         # print statistics
+#         running_loss += loss.item()
+#         if i % 2000 == 1999:  # print every 2000 mini-batches
+#             print(f"[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}")
+#             running_loss = 0.0
+
+# print("Finished Training")
+
+# # %%
+# # Save the trained network
+# PATH = "./flowers102.pth"
+# torch.save(net.state_dict(), PATH)
+
+# # %%
+# # Test the network
+# dataiter = iter(testDataLoader)
+# images, labels = next(dataiter)
+
+# # print images
+# plt.imshow(torchvision.utils.make_grid(images))
+# print("GroundTruth: ", " ".join(f"{labels[j]:5s}" for j in range(4)))
+
+# # %%
+# # Load back the saved network
+# net = Net()
+# net.load_state_dict(torch.load(PATH))
+
+# # %%
+# # Get predictions
+# outputs = net(images)
+
+# # %%
+# # Lets get the images which the AI thinks is the strongest case of each class
+# _, predicted = torch.max(outputs, 1)
+
+# print("Predicted: ", " ".join(f"{predicted[j]:5s}" for j in range(4)))
+
+# # %%
+# # Gauge the performance of the network
+# correct = 0
+# total = 0
+# # since we're not training, we don't need to calculate the gradients for our outputs
+# with torch.no_grad():
+#     for data in testDataLoader:
+#         images, labels = data
+#         # calculate outputs by running images through the network
+#         outputs = net(images)
+#         # the class with the highest energy is what we choose as prediction
+#         _, predicted = torch.max(outputs.data, 1)
+#         total += labels.size(0)
+#         correct += (predicted == labels).sum().item()
+
+# print(f"Accuracy of the network on the 10000 test images: {100 * correct // total} %")
+
+# # %%
+# # Get the predictions accuracy of each class
+
+# # prepare to count predictions for each class
+# correct_pred = {classname: 0 for classname in labels}
+# total_pred = {classname: 0 for classname in labels}
+
+# # again no gradients needed
+# with torch.no_grad():
+#     for data in testDataLoader:
+#         images, labels = data
+#         outputs = net(images)
+#         _, predictions = torch.max(outputs, 1)
+#         # collect the correct predictions for each class
+#         for label, prediction in zip(labels, predictions):
+#             if label == prediction:
+#                 correct_pred[label] += 1
+#             total_pred[label] += 1
+
+
+# # print accuracy for each class
+# for classname, correct_count in correct_pred.items():
+#     accuracy = 100 * float(correct_count) / total_pred[classname]
+#     print(f"Accuracy for class: {classname:5s} is {accuracy:.1f} %")
+
+# # %%
+# # Cleanup
+# del dataiter
+"""
+
 
 # %%
 # The CNN Network
@@ -250,134 +394,165 @@ class Network(nn.Module):
 model = Network()
 
 # %%
-# See the learnable parameters of our model
-params = list(net.parameters())
-print(len(params))
-print(params[0].size())  # conv1's .weight
+# Define the loss function with Classification Cross-Entropy loss and an optimizer with Adam optimizer
+loss_fn = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0.0001)
+
 
 # %%
-# Generate a random 32x32 image, what the models wants
-input = torch.randn(1, 1, 32, 32)
-out = net(input)
-print(out)
+# Function to save the model
+def saveModel():
+    path = "./myFirstModel.pth"
+    torch.save(model.state_dict(), path)
+
 
 # %%
-# Zero the gradient buffers of all parameters and backprops with random gradients
-net.zero_grad()
-out.backward(torch.randn(1, 10))
+# Function to test the model with the test dataset and print the accuracy for the test images
+def testAccuracy():
+    model.eval()
+    accuracy = 0.0
+    total = 0.0
+
+    with torch.no_grad():
+        for data in testDataLoader:
+            images, labels = data
+            # run the model on the test set to predict labels
+            outputs = model(images)
+            # the label with the highest energy will be our prediction
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            accuracy += (predicted == labels).sum().item()
+
+    # compute the accuracy over all test images
+    accuracy = 100 * accuracy / total
+    return accuracy
+
 
 # %%
-# Does this device have a GPU?
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# Training function. We simply have to loop over our data iterator and feed the inputs to the network and optimize.
+def train(num_epochs):
+    best_accuracy = 0.0
 
-# Assuming that we are on a CUDA machine, this should print a CUDA device:
-print(device)
+    # Define your execution device
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print("The model will be running on", device, "device")
+    # Convert model parameters and buffers to CPU or Cuda
+    model.to(device)
 
-# Use the GPU if its there, otherwise use the CPU
-net.to(device)
+    for epoch in range(num_epochs):  # loop over the dataset multiple times
+        running_loss = 0.0
+        running_acc = 0.0
+
+        for i, (images, labels) in enumerate(trainDataLoader, 0):
+            # get the inputs
+            images = torch.autograd.Variable(images.to(device))
+            labels = torch.autograd.Variable(labels.to(device))
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+            # predict classes using images from the training set
+            outputs = model(images)
+            # compute the loss based on model output and real labels
+            loss = loss_fn(outputs, labels)
+            # backpropagate the loss
+            loss.backward()
+            # adjust parameters based on the calculated gradients
+            optimizer.step()
+
+            # Let's print statistics for every 1,000 images
+            running_loss += loss.item()  # extract the loss value
+            if i % 1000 == 999:
+                # print every 1000 (twice per epoch)
+                print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 1000))
+                # zero the loss
+                running_loss = 0.0
+
+        # Compute and print the average accuracy fo this epoch when tested over all 10000 test images
+        accuracy = testAccuracy()
+        print(
+            "For epoch",
+            epoch + 1,
+            "the test accuracy over the whole test set is %d %%" % (accuracy),
+        )
+
+        # we want to save the model if the accuracy is the best
+        if accuracy > best_accuracy:
+            saveModel()
+            best_accuracy = accuracy
+
 
 # %%
-# Loss function
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+# Function to show the images
+def imageshow(img):
+    img = img / 2 + 0.5  # unnormalize
+    npimg = img.numpy()
+    plt.imshow(np.transpose(npimg, (1, 2, 0)))
+    plt.show()
+
 
 # %%
-# Train the Network
-for epoch in range(2):  # loop over the dataset multiple times
-    running_loss = 0.0
-    for i, data in enumerate(trainDataLoader, 0):
-        # Get the inputs; data is a list of [inputs, labels] # inputs, labels = data
-        # And send all the inputs and targets at every step to the chosen device
-        inputs, labels = data[0].to(device), data[1].to(device)
+# Function to test the model with a batch of images and show the labels predictions
+def testBatch():
+    # get batch of images from the test DataLoader
+    images, labels = next(iter(testDataLoader))
 
-        # zero the parameter gradients
-        optimizer.zero_grad()
+    # show all images as one image grid
+    imageshow(torchvision.utils.make_grid(images))
 
-        # forward + backward + optimize
-        outputs = net(inputs)  # This is the Forward Pass
-        loss = criterion(outputs, labels)
-        loss.backward()  # This is the Backward Pass
-        optimizer.step()  # This is the optimizer
+    # Show the real labels on the screen
+    print(
+        "Real labels: ", " ".join("%5s" % classes[labels[j]] for j in range(batch_size))
+    )
 
-        # print statistics
-        running_loss += loss.item()
-        if i % 2000 == 1999:  # print every 2000 mini-batches
-            print(f"[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}")
-            running_loss = 0.0
+    # Let's see what if the model identifiers the  labels of those example
+    outputs = model(images)
 
-print("Finished Training")
+    # We got the probability for every 10 labels. The highest (max) probability should be correct label
+    _, predicted = torch.max(outputs, 1)
+
+    # Let's show the predicted labels on the screen to compare with the real ones
+    print(
+        "Predicted: ",
+        " ".join("%5s" % classes[predicted[j]] for j in range(batch_size)),
+    )
+
 
 # %%
-# Save the trained network
-PATH = "./flowers102.pth"
-torch.save(net.state_dict(), PATH)
+if __name__ == "__main__":
+    # Let's build our model
+    train(5)
+    print("Finished Training")
+
+    # Test which classes performed well
+    testAccuracy()
+
+    # Let's load the model we just created and test the accuracy per label
+    model = Network()
+    path = "myFirstModel.pth"
+    model.load_state_dict(torch.load(path))
+
+    # Test with batch of images
+    testBatch()
+
 
 # %%
-# Test the network
-dataiter = iter(testDataLoader)
-images, labels = next(dataiter)
+# Function to test what classes performed well
+def testClassess():
+    class_correct = list(0.0 for i in range(number_of_labels))
+    class_total = list(0.0 for i in range(number_of_labels))
+    with torch.no_grad():
+        for data in test_loader:
+            images, labels = data
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)
+            c = (predicted == labels).squeeze()
+            for i in range(batch_size):
+                label = labels[i]
+                class_correct[label] += c[i].item()
+                class_total[label] += 1
 
-# print images
-plt.imshow(torchvision.utils.make_grid(images))
-print("GroundTruth: ", " ".join(f"{labels[j]:5s}" for j in range(4)))
-
-# %%
-# Load back the saved network
-net = Net()
-net.load_state_dict(torch.load(PATH))
-
-# %%
-# Get predictions
-outputs = net(images)
-
-# %%
-# Lets get the images which the AI thinks is the strongest case of each class
-_, predicted = torch.max(outputs, 1)
-
-print("Predicted: ", " ".join(f"{predicted[j]:5s}" for j in range(4)))
-
-# %%
-# Gauge the performance of the network
-correct = 0
-total = 0
-# since we're not training, we don't need to calculate the gradients for our outputs
-with torch.no_grad():
-    for data in testDataLoader:
-        images, labels = data
-        # calculate outputs by running images through the network
-        outputs = net(images)
-        # the class with the highest energy is what we choose as prediction
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
-
-print(f"Accuracy of the network on the 10000 test images: {100 * correct // total} %")
-
-# %%
-# Get the predictions accuracy of each class
-
-# prepare to count predictions for each class
-correct_pred = {classname: 0 for classname in labels}
-total_pred = {classname: 0 for classname in labels}
-
-# again no gradients needed
-with torch.no_grad():
-    for data in testDataLoader:
-        images, labels = data
-        outputs = net(images)
-        _, predictions = torch.max(outputs, 1)
-        # collect the correct predictions for each class
-        for label, prediction in zip(labels, predictions):
-            if label == prediction:
-                correct_pred[label] += 1
-            total_pred[label] += 1
-
-
-# print accuracy for each class
-for classname, correct_count in correct_pred.items():
-    accuracy = 100 * float(correct_count) / total_pred[classname]
-    print(f"Accuracy for class: {classname:5s} is {accuracy:.1f} %")
-
-# %%
-# Cleanup
-del dataiter
+    for i in range(number_of_labels):
+        print(
+            "Accuracy of %5s : %2d %%"
+            % (classes[i], 100 * class_correct[i] / class_total[i])
+        )
