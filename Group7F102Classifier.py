@@ -37,6 +37,8 @@ batchSize = 16
 learnRate = 0.001
 weightDecay = 0.0001
 numberOfClasses = 102
+
+
 # %%
 # Create train, valid and test directories to sort dataset into.
 def makePartitionDirs():
@@ -44,6 +46,7 @@ def makePartitionDirs():
         os.makedirs("data/102flowers/train/" + str(i), exist_ok=True)
         os.makedirs("data/102flowers/test/" + str(i), exist_ok=True)
         os.makedirs("data/102flowers/valid/" + str(i), exist_ok=True)
+
 
 # %%
 # Distribute dataset into train, valid and test directories according to setid.mat specifications.
@@ -126,15 +129,12 @@ def showImage(image):
     npImage = image.numpy() / 2 + 0.5
     plt.imshow(np.transpose(npImage, (1, 2, 0)))
     plt.show()
-    
+
 
 # Absolute nightmare to solve and figure out
-trainClassIndexes = {
-    v: k for k, v in trainingData.class_to_idx.items()}
-validClassIndexes = {
-    v: k for k, v in validationData.class_to_idx.items()}
-testClassIndexes = {
-    v: k for k, v in testingData.class_to_idx.items()}
+trainClassIndexes = {v: k for k, v in trainingData.class_to_idx.items()}
+validClassIndexes = {v: k for k, v in validationData.class_to_idx.items()}
+testClassIndexes = {v: k for k, v in testingData.class_to_idx.items()}
 dataIter = iter(trainDataLoader)
 images, labels = next(dataIter)
 showImage(torchvision.utils.make_grid(images))
@@ -400,7 +400,7 @@ model = Network()
 # %%
 # Define the loss function with Classification Cross-Entropy loss and an optimizer with Adam optimizer
 loss_fn = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr= learnRate, weight_decay= weightDecay)
+optimizer = torch.optim.Adam(model.parameters(), lr=learnRate, weight_decay=weightDecay)
 
 
 # %%
@@ -483,7 +483,8 @@ def train(num_epochs):
         if accuracy > best_accuracy:
             saveModel()
             best_accuracy = accuracy
-            
+
+
 # %%
 # Function to test the model with a batch of images and show the labels predictions
 def testBatch():
@@ -491,7 +492,10 @@ def testBatch():
     dataIter = iter(testDataLoader)
     images, labels = next(dataIter)
     showImage(torchvision.utils.make_grid(images))
-    print("Real classes: ", " ".join(f"{testClassIndexes[int(labels[j])]}" for j in range(batchSize)))
+    print(
+        "Real classes: ",
+        " ".join(f"{testClassIndexes[int(labels[j])]}" for j in range(batchSize)),
+    )
     # Let's see what if the model identifiers the  labels of those example
     outputs = model(images)
 
