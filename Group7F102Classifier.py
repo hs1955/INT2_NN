@@ -39,7 +39,6 @@ batchSize = 16
 learnRate = 0.001
 weightDecay = 0.0001
 numberOfClasses = 102
-numOfPools = 2
 
 
 # %%
@@ -374,7 +373,6 @@ def printSampleImages():
 class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-
         self.conv1 = nn.Conv2d(
             in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2
         )  # Perform the learning - there's 12 features to spot I think
@@ -393,8 +391,13 @@ class ConvNet(nn.Module):
         )
         self.bn5 = nn.BatchNorm2d(num_features=24)
         # self.fc1 = nn.Linear(24 * 10 * 10, 10)
+
+        # ! PLACE ALL POOL LAYERS ABOVE THIS FUNCTION !
+        self.numOfPools = self._calc_num_of_pools()
         self.fc1 = nn.Linear(
-            in_features=24 * (crop_size // numOfPools) * (crop_size // numOfPools),
+            in_features=24
+            * (crop_size // (2 * self.numOfPools))
+            * (crop_size // (2 * self.numOfPools)),
             out_features=102,
         )  # Perform the classification
 
@@ -413,7 +416,10 @@ class ConvNet(nn.Module):
         output = F.relu(self.bn5(self.conv5(output)))
         # print(output.shape)
         output = output.view(
-            -1, 24 * (crop_size // numOfPools) * (crop_size // numOfPools)
+            -1,
+            24
+            * (crop_size // (2 * self.numOfPools))
+            * (crop_size // (2 * self.numOfPools)),
         )  # -1 means PyTorch can automatically tell the number of batches
         # print(output.shape)
         output = self.fc1(output)
@@ -422,9 +428,13 @@ class ConvNet(nn.Module):
 
         return output
 
+    def _calc_num_of_pools(self):
+        return self.__str__().count("MaxPool2d")
+
 
 # Instantiate a neural network model
 model = ConvNet()
+print(model)
 
 # %%
 # Define the loss function with Classification Cross-Entropy loss and an optimizer with Adam optimizer
