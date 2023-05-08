@@ -34,8 +34,9 @@ import scipy.io as scio
 # %%
 # Hyperparameters
 batchSize = 16
-
-
+learnRate = 0.001
+weightDecay = 0.0001
+numberOfClasses = 102
 # %%
 # Create train, valid and test directories to sort dataset into.
 def makePartitionDirs():
@@ -43,7 +44,6 @@ def makePartitionDirs():
         os.makedirs("data/102flowers/train/" + str(i), exist_ok=True)
         os.makedirs("data/102flowers/test/" + str(i), exist_ok=True)
         os.makedirs("data/102flowers/valid/" + str(i), exist_ok=True)
-
 
 # %%
 # Distribute dataset into train, valid and test directories according to setid.mat specifications.
@@ -111,30 +111,34 @@ testingData = datasets.ImageFolder(
 # %%
 # Data loaders for use as input.
 trainDataLoader = torch.utils.data.DataLoader(
-    trainingData, batch_size=batchSize, shuffle=True
+    trainingData, batchSize=batchSize, shuffle=True
 )
 validDataLoader = torch.utils.data.DataLoader(
-    validationData, batch_size=batchSize, shuffle=False
+    validationData, batchSize=batchSize, shuffle=False
 )
 testDataLoader = torch.utils.data.DataLoader(
-    testingData, batch_size=batchSize, shuffle=False
+    testingData, batchSize=batchSize, shuffle=False
 )
 
 
 # %%
 def showImage(image):
-    npImage = image.numpy()
+    npImage = image.numpy() / 2 + 0.5
     plt.imshow(np.transpose(npImage, (1, 2, 0)))
     plt.show()
+    
 
-
-classIndexes = {
-    v: k for k, v in trainingData.class_to_idx.items()
-}  # Absolute nightmare to solve and figure out
+# Absolute nightmare to solve and figure out
+trainClassIndexes = {
+    v: k for k, v in trainingData.class_to_idx.items()}
+validClassIndexes = {
+    v: k for k, v in validationData.class_to_idx.items()}
+testClassIndexes = {
+    v: k for k, v in testingData.class_to_idx.items()}
 dataIter = iter(trainDataLoader)
 images, labels = next(dataIter)
 showImage(torchvision.utils.make_grid(images))
-print(" ".join(f"{classIndexes[int(labels[j])]}" for j in range(batchSize)))
+print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(batchSize)))
 
 ### * ALL THE CODE BELOW IS FROM A DIFFERENT ARTICLE
 """
@@ -396,13 +400,13 @@ model = Network()
 # %%
 # Define the loss function with Classification Cross-Entropy loss and an optimizer with Adam optimizer
 loss_fn = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0.0001)
+optimizer = torch.optim.Adam(model.parameters(), lr= learnRate, weight_decay= weightDecay)
 
 
 # %%
 # Function to save the model
 def saveModel():
-    path = "./myFirstModel.pth"
+    path = "./firstF102Model.pth"
     torch.save(model.state_dict(), path)
 
 
@@ -479,31 +483,15 @@ def train(num_epochs):
         if accuracy > best_accuracy:
             saveModel()
             best_accuracy = accuracy
-
-
-# %%
-# Function to show the images
-def imageshow(img):
-    img = img / 2 + 0.5  # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
-
-
+            
 # %%
 # Function to test the model with a batch of images and show the labels predictions
 def testBatch():
     # get batch of images from the test DataLoader
-    images, labels = next(iter(testDataLoader))
-
-    # show all images as one image grid
-    imageshow(torchvision.utils.make_grid(images))
-
-    # Show the real labels on the screen
-    print(
-        "Real labels: ", " ".join("%5s" % classes[labels[j]] for j in range(batch_size))
-    )
-
+    dataIter = iter(testDataLoader)
+    images, labels = next(dataIter)
+    showImage(torchvision.utils.make_grid(images))
+    print("Real classes: ", " ".join(f"{testClassIndexes[int(labels[j])]}" for j in range(batchSize)))
     # Let's see what if the model identifiers the  labels of those example
     outputs = model(images)
 
@@ -513,7 +501,7 @@ def testBatch():
     # Let's show the predicted labels on the screen to compare with the real ones
     print(
         "Predicted: ",
-        " ".join("%5s" % classes[predicted[j]] for j in range(batch_size)),
+        " ".join(f"{testClassIndexes[int(predicted[j])]}" for j in range(batchSize)),
     )
 
 
@@ -537,22 +525,22 @@ if __name__ == "__main__":
 
 # %%
 # Function to test what classes performed well
-def testClassess():
-    class_correct = list(0.0 for i in range(number_of_labels))
-    class_total = list(0.0 for i in range(number_of_labels))
+def testClasses():
+    class_correct = list(0.0 for i in range(numberOfClasses))
+    class_total = list(0.0 for i in range(numberOfClasses))
     with torch.no_grad():
-        for data in test_loader:
+        for data in testDataLoader:
             images, labels = data
             outputs = model(images)
             _, predicted = torch.max(outputs, 1)
             c = (predicted == labels).squeeze()
-            for i in range(batch_size):
+            for i in range(batchSize):
                 label = labels[i]
                 class_correct[label] += c[i].item()
                 class_total[label] += 1
 
-    for i in range(number_of_labels):
+    for i in range(numberOfClasses):
         print(
             "Accuracy of %5s : %2d %%"
-            % (classes[i], 100 * class_correct[i] / class_total[i])
+            % (testClassIndexes[i], 100 * class_correct[i] / class_total[i])
         )
