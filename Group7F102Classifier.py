@@ -4,6 +4,7 @@
 
 # %%
 # Makes File Handling Easier
+import math
 import os
 import shutil
 
@@ -38,6 +39,7 @@ batchSize = 16
 learnRate = 0.001
 weightDecay = 0.0001
 numberOfClasses = 102
+numOfPools = 2
 
 
 # %%
@@ -90,7 +92,7 @@ trainTransforms = transforms.Compose(
 )
 testTransforms = validTransforms = transforms.Compose(
     [
-        transforms.Resize((resize_size, resize_size)),
+        transforms.Resize((crop_size, crop_size)),
         transforms.ToTensor(),
         transforms.Normalize(mean, std),
     ]
@@ -392,7 +394,8 @@ class ConvNet(nn.Module):
         self.bn5 = nn.BatchNorm2d(num_features=24)
         # self.fc1 = nn.Linear(24 * 10 * 10, 10)
         self.fc1 = nn.Linear(
-            in_features=24 * 64 * 64, out_features=102
+            in_features=24 * (crop_size // numOfPools) * (crop_size // numOfPools),
+            out_features=102,
         )  # Perform the classification
 
     def forward(self, input):
@@ -409,13 +412,13 @@ class ConvNet(nn.Module):
         # print(output.shape)
         output = F.relu(self.bn5(self.conv5(output)))
         # print(output.shape)
-        # output = output.view(-1, 24 * 10 * 10)
         output = output.view(
-            -1, 24 * 64 * 64
+            -1, 24 * (crop_size // numOfPools) * (crop_size // numOfPools)
         )  # -1 means PyTorch can automatically tell the number of batches
         # print(output.shape)
         output = self.fc1(output)
         # print(output.shape)
+        # print("Completed Printing output.shape(s)\n\n")
 
         return output
 
@@ -555,7 +558,7 @@ def trainOurModel():
 
     # Let's load the model we just created and test the accuracy per label
     model = ConvNet()
-    path = "myFirstModel.pth"
+    path = "firstF102Model.pth"
     model.load_state_dict(torch.load(path))
 
     # Test with batch of images
