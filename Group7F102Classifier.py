@@ -75,11 +75,13 @@ def partitionData(imageLabels, setid, sortedPath, dataPath):
 # Commonly-used normalisation values across numerous NNs like Resnet18 and ImageNet
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
+resize_size = 160
+crop_size = 128
 trainTransforms = transforms.Compose(
     [
-        transforms.Resize(160),
+        transforms.Resize((resize_size, resize_size)),
         transforms.RandomRotation([-90, 180]),
-        transforms.CenterCrop(128),
+        transforms.CenterCrop((crop_size, crop_size)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.ToTensor(),
@@ -88,7 +90,7 @@ trainTransforms = transforms.Compose(
 )
 testTransforms = validTransforms = transforms.Compose(
     [
-        transforms.Resize(160),
+        transforms.Resize((resize_size, resize_size)),
         transforms.ToTensor(),
         transforms.Normalize(mean, std),
     ]
@@ -372,44 +374,48 @@ class ConvNet(nn.Module):
         super(ConvNet, self).__init__()
 
         self.conv1 = nn.Conv2d(
-            in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=1
+            in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2
         )  # Perform the learning - there's 12 features to spot I think
         self.bn1 = nn.BatchNorm2d(num_features=12)  # Normalise the data
         self.conv2 = nn.Conv2d(
-            in_channels=12, out_channels=12, kernel_size=5, stride=1, padding=1
+            in_channels=12, out_channels=12, kernel_size=5, stride=1, padding=2
         )
         self.bn2 = nn.BatchNorm2d(num_features=12)
         self.pool = nn.MaxPool2d(2, 2)  # Shrinks the data size by a factor of 2
         self.conv4 = nn.Conv2d(
-            in_channels=12, out_channels=24, kernel_size=5, stride=1, padding=1
+            in_channels=12, out_channels=24, kernel_size=5, stride=1, padding=2
         )
         self.bn4 = nn.BatchNorm2d(num_features=24)
         self.conv5 = nn.Conv2d(
-            in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=1
+            in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2
         )
         self.bn5 = nn.BatchNorm2d(num_features=24)
         # self.fc1 = nn.Linear(24 * 10 * 10, 10)
         self.fc1 = nn.Linear(
-            in_features=16 * 24 * 58 * 58, out_features=102
+            in_features=24 * 64 * 64, out_features=102
         )  # Perform the classification
 
     def forward(self, input):
-        print(input.shape)  # torch.Size([16, 3, 128, 128])
-        output = F.relu(self.bn1(self.conv1(input)))
-        print(output.shape)  # torch.Size([16, 12, 126, 126])
+        # print(input.shape)
+        output = F.relu(
+            self.bn1(self.conv1(input))
+        )  # F.relu is the activation layer, and does not change the size
+        # print(output.shape)
         output = F.relu(self.bn2(self.conv2(output)))
-        print(output.shape)  # torch.Size([16, 12, 124, 124])
+        # print(output.shape)
         output = self.pool(output)
-        print(output.shape)  # torch.Size([16, 12, 62, 62])
+        # print(output.shape)
         output = F.relu(self.bn4(self.conv4(output)))
-        print(output.shape)  # torch.Size([16, 24, 60, 60])
+        # print(output.shape)
         output = F.relu(self.bn5(self.conv5(output)))
-        print(output.shape)  # torch.Size([16, 24, 58, 58])
+        # print(output.shape)
         # output = output.view(-1, 24 * 10 * 10)
-        output = output.view(-1, 16 * 24 * 58 * 58)
-        print(output.shape)  # torch.Size([1, 1291776])
+        output = output.view(
+            -1, 24 * 64 * 64
+        )  # -1 means PyTorch can automatically tell the number of batches
+        # print(output.shape)
         output = self.fc1(output)
-        print(output.shape)  # torch.Size([1, 102])
+        # print(output.shape)
 
         return output
 
@@ -481,7 +487,7 @@ def train(num_epochs):
             # Zero the parameter gradients
             optimizer.zero_grad()
             # predict classes using images from the training set
-            outputs = model(images).squeeze()
+            outputs = model(images)
 
             # Process outputs to get the weights relevant to the labels
 
