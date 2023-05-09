@@ -8,6 +8,7 @@ from collections import OrderedDict
 import math
 import os
 import shutil
+import time
 
 # PyTorch model and training necessities
 import torch
@@ -83,6 +84,7 @@ trainTransforms = transforms.Compose(
     [
         transforms.Resize((resize_size, resize_size)),
         transforms.RandomRotation([-90, 180]),
+        transforms.RandomAutocontrast(),
         transforms.CenterCrop((crop_size, crop_size)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
@@ -157,164 +159,40 @@ def printSampleImages():
 class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-        """
-        # self.conv1 = nn.Conv2d(
-        #     in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2
-        # )  # Perform the learning - there's 12 features to spot I think
-        # self.bn1 = nn.BatchNorm2d(num_features=12)  # Normalise the data
-        # self.conv2 = nn.Conv2d(
-        #     in_channels=12, out_channels=12, kernel_size=5, stride=1, padding=2
-        # )
-        # self.bn2 = nn.BatchNorm2d(num_features=12)
-        # self.pool = nn.MaxPool2d(2, 2)  # Shrinks the data size by a factor of 2
-        # self.conv4 = nn.Conv2d(
-        #     in_channels=12, out_channels=24, kernel_size=5, stride=1, padding=2
-        # )
-        # self.bn4 = nn.BatchNorm2d(num_features=24)
-        # self.conv5 = nn.Conv2d(
-        #     in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2
-        # )
-        # self.bn5 = nn.BatchNorm2d(num_features=24)
-        # # ! PLACE ALL POOL LAYERS ABOVE THIS FUNCTION !
-        # self.numOfPools = self._calc_num_of_pools()
-        # self.fc1 = nn.Linear(
-        #     in_features=24
-        #     * (crop_size // (2 * self.numOfPools))
-        #     * (crop_size // (2 * self.numOfPools)),
-        #     out_features=102,
-        # )  # Perform the classification
-        """
-
         self.numOfPools = 1
-        self.tensorMulti = 24 * (crop_size // (2 * self.numOfPools))**2
+        self.tensorMulti = 36 * (crop_size // (2 * self.numOfPools))**2
 
         self.features = nn.Sequential(OrderedDict([
             ("conv1", nn.Conv2d(in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2)),
             ("bn1", nn.BatchNorm2d(num_features=12)),
+            ("relu1", nn.ReLU()),
             ("conv2", nn.Conv2d(in_channels=12, out_channels=12, kernel_size=5, stride=1, padding=2)),
             ("bn2", nn.BatchNorm2d(num_features=12)),
+            ("relu2", nn.ReLU()),
             ("pool", nn.MaxPool2d(2, 2)),
             ("conv4", nn.Conv2d(in_channels=12, out_channels=24, kernel_size=5, stride=1, padding=2)),
             ("bn4", nn.BatchNorm2d(num_features=24)),
+            ("relu3", nn.ReLU()),
             ("conv5", nn.Conv2d(in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2)),
-            ("bn5", nn.BatchNorm2d(num_features=24))
+            ("bn5", nn.BatchNorm2d(num_features=24)),
+            ("relu4", nn.ReLU()),
+            # New layers underneath
+            ("conv6", nn.Conv2d(in_channels=24, out_channels=36, kernel_size=5, stride=1, padding=2)),
+            ("bn6", nn.BatchNorm2d(num_features=36)),
+            ("relu5", nn.ReLU()),
         ]))
 
         self.classifier = nn.Sequential(OrderedDict([
             ("fc1", nn.Linear(in_features=self.tensorMulti, out_features=102))
         ]))
 
-        """
-        # input     Image Input             224x224x3 images with 'zerocenter' normalization
-        # self.features = nn.Sequential(
-        #     OrderedDict(
-        #         [
-                    # ("conv1_1", nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),
-                    # ("bn1", nn.BatchNorm2d(num_features=64)),
-                    # ("relu1_1", nn.ReLU(inplace=True)),
-                    # ("conv1_2", nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),
-                    # ("bn2", nn.BatchNorm2d(num_features=64)),
-                    # ("relu1_2", nn.ReLU(inplace=True)),
-                    # ("pool1", nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)),  # 2x2 max pooling with stride [2  2] and padding [0  0  0  0]
-                    # ("conv2_1", nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),
-                    # ("bn3", nn.BatchNorm2d(num_features=128)),# 128 3x3x64 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu2_1", nn.ReLU(inplace=True)),
-                    # ("conv2_2", nn.Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 128 3x3x128 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("bn4", nn.BatchNorm2d(num_features=128)),
-                    # ("relu2_2", nn.ReLU(inplace=True)),
-                    # ("pool2", nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)),  # 2x2 max pooling with stride [2  2] and padding [0  0  0  0]
-                    # ("conv3_1", nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 256 3x3x128 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu3_1", nn.ReLU(inplace=True)),
-                    # ("conv3_2",nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 256 3x3x256 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu3_2", nn.ReLU(inplace=True)),
-                    # ("conv3_3", nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 256 3x3x256 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu3_3", nn.ReLU(inplace=True)),
-                    # ("conv3_4", nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 256 3x3x256 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu3_4", nn.ReLU(inplace=True)),
-                    # ("pool3", nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)),  #   2x2 max pooling with stride [2  2] and padding [0  0  0  0]
-                    # ("conv4_1", nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 512 3x3x256 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu4_1", nn.ReLU(inplace=True)),
-                    # ("conv4_2", nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 512 3x3x512 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu4_2", nn.ReLU(inplace=True)),
-                    # ("conv4_3", nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 512 3x3x512 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu4_3", nn.ReLU(inplace=True)),
-                    # ("conv4_4", nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 512 3x3x512 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu4_4", nn.ReLU(inplace=True)),
-                    # ("pool4", nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)),  # 2x2 max pooling with stride [2  2] and padding [0  0  0  0]
-                    # ("conv5_1", nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 512 3x3x512 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu5_1", nn.ReLU(inplace=True)),
-                    # ("conv5_2", nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 512 3x3x512 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu5_2", nn.ReLU(inplace=True)),
-                    # ("conv5_3", nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 512 3x3x512 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu5_3", nn.ReLU(inplace=True)),
-                    # ("conv5_4", nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),  # 512 3x3x512 convolutions with stride [1  1] and padding [1  1  1  1]
-                    # ("relu5_4", nn.ReLU(inplace=True)),
-                    # ("pool5", nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)),  # 2x2 max pooling with stride [2  2] and padding [0  0  0  0]
-        #         ]
-        #     )
-        # )
-
-        # self.classifier = nn.Sequential(
-        #     OrderedDict(
-        #         [
-        #             ("fc1", nn.Linear(self.tensorMulti, 102)),
-        #             # ("relu", nn.ReLU()),
-        #             # ("drop", nn.Dropout(p = 0.01)),
-        #             # ("fc2", nn.Linear(4096, 102)),
-        #             # ("output", nn.LogSoftmax(dim = 1)),
-        #         ]
-        #     )
-        # )
-        """
         self.layers = self.features + self.classifier
 
     def forward(self, input_img):
-        """
-        # # print(input.shape)
-        # output = F.relu(
-        #     self.bn1(self.conv1(input))
-        # )  # F.relu is the activation layer, and does not change the size
-        # # print(output.shape)
-        # output = F.relu(self.bn2(self.conv2(output)))
-        # # print(output.shape)
-        # output = self.pool(output)
-        # # print(output.shape)
-        # output = F.relu(self.bn4(self.conv4(output)))
-        # # print(output.shape)
-        # output = F.relu(self.bn5(self.conv5(output)))
-        # # print(output.shape)
-        # output = output.view(
-        #     -1,
-        #     24
-        #     * (crop_size // (2 * self.numOfPools))
-        #     * (crop_size // (2 * self.numOfPools)),
-        # )  # -1 means PyTorch can automatically tell the number of batches
-        # # print(output.shape)
-        # output = self.fc1(output)
-        # # print(output.shape)
-        # # print("Completed Printing output.shape(s)\n\n")
-
-        # return output
-        ###
-        # output = input_img.clone()
-        # for index, layer in enumerate(self.features):
-        #     output = layer(output)
-        #     # print(index)
-        #     # print(output.shape)
-
-        #  # -1 means PyTorch can automatically tell the number of batches
-        # output = output.view(-1, self.tensorMulti)
-
-        # for layer in self.classifier:
-        #     output = layer(output)
-        """
         output = self.features(input_img)
         # print(output.shape)
         output = self.classifier(output.view(-1, self.tensorMulti))
         return output
-
-    # def _calc_num_of_pools(self):
-    #     return self.__str__().count("MaxPool2d")
 
 
 # Instantiate a neural network model
@@ -385,6 +263,10 @@ def plotAccuracies(trainAccuracies, validAccuracies):
 # %%
 # Training function. We simply have to loop over our data iterator and feed the inputs to the network and optimize.
 def train(numEpochs):
+    MAX_TRAIN_TIME = 60
+    CHECKPOINT_PERIOD = 20
+    startTime = time.time()
+    lastCheckpointTime = startTime
     bestAccuracy = 0.0
     trainAccuracies = []
     validAccuracies = []
@@ -410,7 +292,6 @@ def train(numEpochs):
             # predict classes using images from the training set
             outputs = model(images)
             # Process outputs to get the weights relevant to the labels
-
             # compute the loss based on model output and real labels
             loss = lossFunction(outputs, labels)
             # Back-propagate the loss
@@ -419,8 +300,8 @@ def train(numEpochs):
             optimizer.step()
             runningLoss += loss.item()  # extract the loss value
             if i % batchSize == batchSize - 1:
-                # print every 1000 (twice per epoch)
-                print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, runningLoss / batchSize))
+                # print twice per epoch
+                # print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, runningLoss / batchSize))
                 # zero the loss
                 runningLoss = 0.0
 
@@ -436,7 +317,16 @@ def train(numEpochs):
             "the training accuracy over the whole training set is %d %%" % (trainAccuracy),
             "\nthe validation accuracy over the whole validation set is %d %%" % (validAccuracy),
         )
+        elapsedTime = time.time() - lastCheckpointTime
+        if elapsedTime >= CHECKPOINT_PERIOD:
+            saveModel()
+            lastCheckpointTime = time.time()
 
+        # Check if the maximum training time has elapsed
+        elapsedTime  = time.time() - startTime
+        if elapsedTime  >= MAX_TRAIN_TIME:
+            saveModel()
+            break
         # we want to save the model if the accuracy is the best
         if validAccuracy > bestAccuracy:
             saveModel()
@@ -522,6 +412,7 @@ def testClasses():
             "Accuracy of %5s : %2d %%"
             % (testClassIndexes[i], 100 * class_correct[i] / class_total[i])
         )
+
 # %%
 # Begin the training
 trainOurModel()
