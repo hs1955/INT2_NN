@@ -52,8 +52,8 @@ CHANCES_TO_IMPROVE = 5
 CHECKPOINT_PERIOD = 100
 
 # Transforms
-RESIZE_SIZE = 140
-CROP_SIZE = 128
+RESIZE_SIZE = 232
+CROP_SIZE = 204
 
 # %%
 # Create train, valid and test directories to sort dataset into.
@@ -184,7 +184,7 @@ class ConvNet(nn.Module):
             ("conv5", nn.Conv2d(in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2)),
             ("bn5", nn.BatchNorm2d(num_features=24)),
             ("relu4", nn.ReLU()),
-            # ("dp1", nn.Dropout2d(p = 0.1)),
+            ("dp1", nn.Dropout2d(p = 0.1)),
 
             # New layers underneath
             # ("pool2", nn.MaxPool2d(2, 2)),
@@ -346,12 +346,12 @@ def train(save_model_path, bestAccuracy = 0.0):
             break
 
         if validAccuracy > runningAccuracy:
-            print("Improvement made: %2d%% better." % (validAccuracy - runningAccuracy))
+            print("Improvement made: %.2f%% better." % (validAccuracy - runningAccuracy))
             runningAccuracy = validAccuracy
             fails_to_imprv = 0
         else:
             fails_to_imprv += 1
-            print("Failed to improve: %d, %2d%% worse." % (fails_to_imprv, (runningAccuracy - validAccuracy)))
+            print("Failed to improve: %d, %.2f%% worse." % (fails_to_imprv, (runningAccuracy - validAccuracy)))
 
         # we want to save the model if the accuracy is the best
         if validAccuracy > bestAccuracy or fails_to_imprv > CHANCES_TO_IMPROVE:
@@ -448,5 +448,5 @@ def testClasses(model):
 
 # %%
 # Begin the training
-trainOurModel("firstF102Model-128-2.pth")
+trainOurModel("firstF102Model-200.pth")
 # testClasses()
