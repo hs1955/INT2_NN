@@ -48,7 +48,7 @@ NUM_EPOCHS = 100
 # Training
 MAX_TRAIN_TIME = 60 * 60 * 6
 CHECKPOINT_PERIOD = 100
-CHANCES_TO_IMPROVE = 10
+CHANCES_TO_IMPROVE = 5
 
 # Transforms
 RESIZE_SIZE = 256
@@ -159,7 +159,7 @@ def printSampleImages(dataLoader, classIndexes):
     dataIter = iter(trainDataLoader)
     images, labels = next(dataIter)
     showImage(torchvision.utils.make_grid(images))
-    print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(batchSize)))
+    print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(BATCH_SIZE)))
 
 # %%
 # The CNN Network
@@ -275,7 +275,7 @@ def plotAccuracies(trainAccuracies, validAccuracies):
     ax1.legend()
 # %%
 # Training function. We simply have to loop over our data iterator and feed the inputs to the network and optimize.
-def train(model, numEpochs, bestAccuracy = 0.0):
+def train(model, bestAccuracy = 0.0):
     startTime = time.time()
     lastCheckpointTime = startTime
     trainAccuracies = []
@@ -286,7 +286,7 @@ def train(model, numEpochs, bestAccuracy = 0.0):
     # Convert model parameters and buffers to CPU or Cuda
     model.to(device) # Regretfully AMD GPUs are unsupported for PyTorch models.
 
-    for epoch in range(numEpochs):  # loop over the dataset multiple times
+    for epoch in range(NUM_EPOCHS):  # loop over the dataset multiple times
         # Evaluation and Training of the Dataset
         model.train()
         runningLoss = 0.0
@@ -340,12 +340,12 @@ def train(model, numEpochs, bestAccuracy = 0.0):
             break
 
         if validAccuracy > runningAccuracy:
-            print("Improvement made: %2d% better." % (validAccuracy - runningAccuracy))
+            print("Improvement made: %2d%% better." % (validAccuracy - runningAccuracy))
             runningAccuracy = validAccuracy
             fails_to_imprv = 0
         else:
             fails_to_imprv += 1
-            print("Failed to improve: %d, %2d% worse." % fails_to_imprv, (runningAccuracy - validAccuracy))
+            print("Failed to improve: %d, %2d%% worse." % fails_to_imprv, (runningAccuracy - validAccuracy))
 
         # we want to save the model if the accuracy is the best
         if validAccuracy > bestAccuracy or fails_to_imprv > CHANCES_TO_IMPROVE:
@@ -408,7 +408,7 @@ def trainOurModel(model_path = "firstF102Model.pth", best_model_path = ""):
     model = ConvNet()
 
     # Let's build our model
-    train(model, NUM_EPOCHS, best_accurracy)
+    train(model, best_accurracy)
     print("Finished Training")
 
     # Test which classes performed well
@@ -447,5 +447,5 @@ def testClasses(model):
 
 # %%
 # Begin the training
-trainOurModel()
+trainOurModel("firstF102Model.pth")
 # testClasses()
