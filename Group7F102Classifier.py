@@ -43,16 +43,17 @@ NUM_OF_CLASSES = 102
 # Optimizing
 LEARN_RATE = 0.001
 WEIGHT_DECAY = 0.0001
-NUM_EPOCHS = 100
 
 # Training
 MAX_TRAIN_TIME = 60 * 60 * 6
-CHECKPOINT_PERIOD = 100
+NUM_EPOCHS = 100
 CHANCES_TO_IMPROVE = 5
 
+CHECKPOINT_PERIOD = 100
+
 # Transforms
-RESIZE_SIZE = 256
-CROP_SIZE = 232
+RESIZE_SIZE = 222
+CROP_SIZE = 204
 
 # %%
 # Create train, valid and test directories to sort dataset into.
@@ -167,7 +168,7 @@ def printSampleImages(dataLoader, classIndexes):
 class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-        self.tensorMulti = 24 * 116**2
+        self.tensorMulti = 24 * (CROP_SIZE//2)**2
 
         self.features = nn.Sequential(OrderedDict([
             ("conv1", nn.Conv2d(in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2)),
@@ -183,6 +184,7 @@ class ConvNet(nn.Module):
             ("conv5", nn.Conv2d(in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2)),
             ("bn5", nn.BatchNorm2d(num_features=24)),
             ("relu4", nn.ReLU()),
+            ("dp1", nn.Dropout2d()),
 
             # New layers underneath
             # ("pool2", nn.MaxPool2d(2, 2)),
@@ -192,7 +194,9 @@ class ConvNet(nn.Module):
         ]))
 
         self.classifier = nn.Sequential(OrderedDict([
-            ("fc1", nn.Linear(in_features=self.tensorMulti, out_features=102))
+            # ("fc0", nn.Linear(in_features=self.tensorMulti, out_features=self.tensorMulti//NUM_OF_CLASSES)),
+            # ("dp1", nn.Dropout2d()),
+            ("fc1", nn.Linear(in_features=self.tensorMulti, out_features=NUM_OF_CLASSES)),
         ]))
 
 
@@ -201,7 +205,9 @@ class ConvNet(nn.Module):
     def forward(self, input_img):
         output = self.features(input_img)
         # print(output.shape)
-        output = self.classifier(output.view(-1, self.tensorMulti))
+        output = output.view(-1, self.tensorMulti)
+        # print(output.shape)
+        output = self.classifier(output)
         return output
 
     # def _calc_num_of_pools(self):
@@ -286,12 +292,13 @@ def train(model, bestAccuracy = 0.0):
     # Convert model parameters and buffers to CPU or Cuda
     model.to(device) # Regretfully AMD GPUs are unsupported for PyTorch models.
 
+    runningAccuracy = 0.0
+    fails_to_imprv = 0
+
     for epoch in range(NUM_EPOCHS):  # loop over the dataset multiple times
         # Evaluation and Training of the Dataset
         model.train()
         runningLoss = 0.0
-        runningAccuracy = 0.0
-        fails_to_imprv = 0
 
         print("\n##############################")
         for i, (images, labels) in enumerate(trainDataLoader, 0):
@@ -329,13 +336,13 @@ def train(model, bestAccuracy = 0.0):
             "\nthe validation accuracy over the whole validation set is %d %%" % (validAccuracy),
         )
         elapsedTime = time.time() - lastCheckpointTime
-        if elapsedTime >= CHECKPOINT_PERIOD:
+        if elapsedTime >= CHECKPOINT_PERIOD and validAccuracy > bestAccuracy:
             saveModel(model)
             lastCheckpointTime = time.time()
 
         # Check if the maximum training time has elapsed
         elapsedTime  = time.time() - startTime
-        if elapsedTime  >= MAX_TRAIN_TIME:
+        if elapsedTime  >= MAX_TRAIN_TIME and validAccuracy > bestAccuracy:
             saveModel(model)
             break
 
@@ -345,7 +352,7 @@ def train(model, bestAccuracy = 0.0):
             fails_to_imprv = 0
         else:
             fails_to_imprv += 1
-            print("Failed to improve: %d, %2d%% worse." % fails_to_imprv, (runningAccuracy - validAccuracy))
+            print("Failed to improve: %d, %2d%% worse." % (fails_to_imprv, (runningAccuracy - validAccuracy)))
 
         # we want to save the model if the accuracy is the best
         if validAccuracy > bestAccuracy or fails_to_imprv > CHANCES_TO_IMPROVE:
@@ -447,5 +454,5 @@ def testClasses(model):
 
 # %%
 # Begin the training
-trainOurModel("firstF102Model.pth")
+trainOurModel("firstF102Model200.pth")
 # testClasses()
