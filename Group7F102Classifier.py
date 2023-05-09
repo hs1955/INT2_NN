@@ -320,7 +320,7 @@ optimizer = torch.optim.SGD(model.parameters(), lr=learnRate, weight_decay=weigh
 def saveModel():
     path = "./firstF102Model.pth"
     torch.save(model.state_dict(), path)
-    
+
 # %%
 # Function to test the model with the validation dataset and print the accuracy for the validation images
 def trainingAccuracy():
@@ -371,7 +371,7 @@ def plotAccuracies(trainAccuracies, validAccuracies):
     ax1.set_title('Training and Validation Accuracies against Loss')
     ax1.set_xlabel('Epoch')
     ax1.set_ylabel('Accuracy')
-    ax1.legend()    
+    ax1.legend()
 # %%
 # Training function. We simply have to loop over our data iterator and feed the inputs to the network and optimize.
 def train(numEpochs):
@@ -400,7 +400,7 @@ def train(numEpochs):
             # predict classes using images from the training set
             outputs = model(images)
             # Process outputs to get the weights relevant to the labels
-            
+
             # compute the loss based on model output and real labels
             loss = lossFunction(outputs, labels)
             # Back-propagate the loss
@@ -456,7 +456,7 @@ def testBatch():
         " ".join(f"{testClassIndexes[int(predicted[j])]}" for j in range(batchSize)),
     )
 # %%
-# Function to validate the model with a batch of images from the validation set. 
+# Function to validate the model with a batch of images from the validation set.
 def validBatch():
     model.eval()
     dataIter = iter(validDataLoader)
