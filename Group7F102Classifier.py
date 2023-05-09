@@ -41,9 +41,10 @@ BATCH_SIZE = 16
 LEARN_RATE = 0.001
 WEIGHT_DECAY = 0.0001
 NUM_OF_CLASSES = 102
-NUM_EPOCHS = 20
-MAX_TRAIN_TIME = 60 * 60
-CHECKPOINT_PERIOD = 20
+NUM_EPOCHS = 50
+MAX_TRAIN_TIME = 60 * 60 * 5
+CHECKPOINT_PERIOD = 100
+CHANCES_TO_IMPROVE = 10
 
 # %%
 # Create train, valid and test directories to sort dataset into.
@@ -162,7 +163,7 @@ def printSampleImages():
 class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-        self.tensorMulti = 36 * 64 * 64
+        self.tensorMulti = 24 * 64 * 64
 
         self.features = nn.Sequential(OrderedDict([
             ("conv1", nn.Conv2d(in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2)),
@@ -180,10 +181,10 @@ class ConvNet(nn.Module):
             ("relu4", nn.ReLU()),
 
             # New layers underneath
-            ("pool2", nn.MaxPool2d(2, 2)),
-            ("conv6", nn.Conv2d(in_channels=24, out_channels=36, kernel_size=5, stride=1, padding=2)),
-            ("bn6", nn.BatchNorm2d(num_features=36)),
-            ("relu5", nn.ReLU()),
+            # ("pool2", nn.MaxPool2d(2, 2)),
+            # ("conv6", nn.Conv2d(in_channels=24, out_channels=36, kernel_size=5, stride=1, padding=2)),
+            # ("bn6", nn.BatchNorm2d(num_features=36)),
+            # ("relu5", nn.ReLU()),
         ]))
 
         self.classifier = nn.Sequential(OrderedDict([
@@ -282,7 +283,8 @@ def train(numEpochs):
         # Evaluation and Training of the Dataset
         model.train()
         runningLoss = 0.0
-        # runningAccuracy = 0.0
+        runningAccuracy = 0.0
+        fails_to_imprv = 0
 
         for i, (images, labels) in enumerate(trainDataLoader, 0):
             # Get the inputs
@@ -329,8 +331,15 @@ def train(numEpochs):
         if elapsedTime  >= MAX_TRAIN_TIME:
             saveModel()
             break
+        
+        if validAccuracy > runningAccuracy:
+            runningAccuracy = validAccuracy
+            fails_to_imprv = 0
+        else:
+            fails_to_imprv += 1
+        
         # we want to save the model if the accuracy is the best
-        if validAccuracy > bestAccuracy:
+        if validAccuracy > bestAccuracy or fails_to_imprv > CHANCES_TO_IMPROVE:
             saveModel()
             bestAccuracy = validAccuracy
 
