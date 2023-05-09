@@ -40,7 +40,7 @@ batchSize = 16
 learnRate = 0.001
 weightDecay = 0.0001
 numberOfClasses = 102
-numEpochs = 10
+numEpochs = 20
 
 # %%
 # Create train, valid and test directories to sort dataset into.
@@ -77,7 +77,7 @@ def partitionData(imageLabels, setid, sortedPath, dataPath):
 # Commonly-used normalisation values across numerous NNs like Resnet18 and ImageNet
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
-resize_size = 160
+resize_size = 140
 crop_size = 128
 trainTransforms = transforms.Compose(
     [
@@ -86,6 +86,7 @@ trainTransforms = transforms.Compose(
         transforms.CenterCrop((crop_size, crop_size)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
+        transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
         transforms.ToTensor(),
         transforms.Normalize(mean, std),
     ]
@@ -185,7 +186,7 @@ class ConvNet(nn.Module):
         """
 
         self.numOfPools = 1
-        self.tensorMulti = 24 * 64 * 64
+        self.tensorMulti = 24 * (crop_size // (2 * self.numOfPools))**2
 
         self.features = nn.Sequential(OrderedDict([
             ("conv1", nn.Conv2d(in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2)),
@@ -200,7 +201,7 @@ class ConvNet(nn.Module):
         ]))
 
         self.classifier = nn.Sequential(OrderedDict([
-            ("fc1", nn.Linear(in_features=24 * (crop_size // (2 * self.numOfPools)) * (crop_size // (2 * self.numOfPools)), out_features=102))
+            ("fc1", nn.Linear(in_features=self.tensorMulti, out_features=102))
         ]))
 
         """
