@@ -38,13 +38,21 @@ import scipy.io as scio
 # %%
 # Hyper Parameters
 BATCH_SIZE = 16
+NUM_OF_CLASSES = 102
+
+# Optimizing
 LEARN_RATE = 0.001
 WEIGHT_DECAY = 0.0001
-NUM_OF_CLASSES = 102
 NUM_EPOCHS = 100
+
+# Training
 MAX_TRAIN_TIME = 60 * 60 * 6
 CHECKPOINT_PERIOD = 100
 CHANCES_TO_IMPROVE = 10
+
+# Transforms
+RESIZE_SIZE = 256
+CROP_SIZE = 232
 
 # %%
 # Create train, valid and test directories to sort dataset into.
@@ -81,15 +89,13 @@ def partitionData(imageLabels, setid, sortedPath, dataPath):
 # Commonly-used normalisation values across numerous NNs like Resnet18 and ImageNet
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
-resize_size = 140
-crop_size = 128
 trainTransforms = transforms.Compose(
     [
-        transforms.Resize((resize_size, resize_size)),
-        transforms.RandomRotation([-90, 180]),
-        transforms.RandomRotation(degrees=80),
+        transforms.Resize((RESIZE_SIZE, RESIZE_SIZE)),
+        # transforms.RandomRotation([-90, 180]),
+        transforms.RandomRotation(degrees=65),
         transforms.RandomAutocontrast(),
-        transforms.CenterCrop((crop_size, crop_size)),
+        transforms.CenterCrop((CROP_SIZE, CROP_SIZE)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
@@ -99,7 +105,7 @@ trainTransforms = transforms.Compose(
 )
 testTransforms = validTransforms = transforms.Compose(
     [
-        transforms.Resize((crop_size, crop_size)),
+        transforms.Resize((CROP_SIZE, CROP_SIZE)),
         transforms.ToTensor(),
         transforms.Normalize(mean, std),
     ]
@@ -161,7 +167,7 @@ def printSampleImages(dataLoader, classIndexes):
 class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-        self.tensorMulti = 24 * 64 * 64
+        self.tensorMulti = 24 * 116**2
 
         self.features = nn.Sequential(OrderedDict([
             ("conv1", nn.Conv2d(in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2)),
@@ -206,19 +212,19 @@ class ConvNet(nn.Module):
 model = ConvNet()
 
 # %%
-# Define the loss function with Classification Cross-Entropy loss and 
-# an optimizer with Stochastic Gradient Descent as they marry well together
+# Define the loss function with Classification Cross-Entropy loss and an optimizer with SGD optimizer
 lossFunction  = nn.CrossEntropyLoss()
+# Optimizer
 optimizer = torch.optim.SGD(model.parameters(), lr=LEARN_RATE, weight_decay=WEIGHT_DECAY)
 # %%
 # Function to save the model
-def saveModel():
+def saveModel(model):
     path = "./firstF102Model.pth"
     torch.save(model.state_dict(), path)
 
 # %%
 # Function to test the model with the validation dataset and print the accuracy for the validation images
-def trainingAccuracy():
+def trainingAccuracy(model):
     model.eval()
     accuracy = 0.0
     total = 0.0
@@ -237,7 +243,7 @@ def trainingAccuracy():
     accuracy = 100 * accuracy / total
     return accuracy
 
-def validateAccuracy():
+def validateAccuracy(model):
     model.eval()
     accuracy = 0.0
     total = 0.0
@@ -269,10 +275,9 @@ def plotAccuracies(trainAccuracies, validAccuracies):
     ax1.legend()
 # %%
 # Training function. We simply have to loop over our data iterator and feed the inputs to the network and optimize.
-def train(numEpochs):
+def train(model, numEpochs, bestAccuracy = 0.0):
     startTime = time.time()
     lastCheckpointTime = startTime
-    bestAccuracy = 0.0
     trainAccuracies = []
     validAccuracies = []
     # Define your execution device
@@ -288,6 +293,7 @@ def train(numEpochs):
         runningAccuracy = 0.0
         fails_to_imprv = 0
 
+        print("\n##############################")
         for i, (images, labels) in enumerate(trainDataLoader, 0):
             # Get the inputs
             # Documentation on Variable: https://sebarnold.net/tutorials/beginner/examples_autograd/two_layer_net_autograd.html
@@ -295,11 +301,9 @@ def train(numEpochs):
             labels = torch.autograd.Variable(labels.to(device))
             # Zero the parameter gradients
             optimizer.zero_grad()
-            # predict classes using images from the training set
+            # Predict classes using images from the training set
             outputs = model(images)
-            # Process outputs to get the weights relevant to the labels
-
-            # compute the loss based on model output and real labels
+            # Compute the loss based on model output and real labels
             loss = lossFunction(outputs, labels)
             # Back-propagate the loss
             loss.backward()
@@ -308,14 +312,14 @@ def train(numEpochs):
             runningLoss += loss.item()  # extract the loss value
             if i % BATCH_SIZE == BATCH_SIZE - 1:
                 # print twice per epoch
-                # print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, runningLoss / batchSize))
+                print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, runningLoss / BATCH_SIZE))
                 # zero the loss
                 runningLoss = 0.0
 
         # Compute and print the average accuracy fo this epoch when tested over all validation images
-        trainAccuracy = trainingAccuracy()
+        trainAccuracy = trainingAccuracy(model)
         trainAccuracies.append(trainAccuracy)
-        validAccuracy = validateAccuracy()
+        validAccuracy = validateAccuracy(model)
         validAccuracies.append(validAccuracy)
         plotAccuracies(trainAccuracies, validAccuracies)
         print(
@@ -326,32 +330,32 @@ def train(numEpochs):
         )
         elapsedTime = time.time() - lastCheckpointTime
         if elapsedTime >= CHECKPOINT_PERIOD:
-            saveModel()
+            saveModel(model)
             lastCheckpointTime = time.time()
 
         # Check if the maximum training time has elapsed
         elapsedTime  = time.time() - startTime
         if elapsedTime  >= MAX_TRAIN_TIME:
-            saveModel()
+            saveModel(model)
             break
 
         if validAccuracy > runningAccuracy:
-            print(f"Improvement made: {validAccuracy - runningAccuracy}% better.")
+            print("Improvement made: %2d% better." % (validAccuracy - runningAccuracy))
             runningAccuracy = validAccuracy
             fails_to_imprv = 0
         else:
             fails_to_imprv += 1
-            print(f"Failed to improve: {fails_to_imprv}, {runningAccuracy - validAccuracy}% worse")
+            print("Failed to improve: %d, %2d% worse." % fails_to_imprv, (runningAccuracy - validAccuracy))
 
         # we want to save the model if the accuracy is the best
         if validAccuracy > bestAccuracy or fails_to_imprv > CHANCES_TO_IMPROVE:
-            saveModel()
+            saveModel(model)
             bestAccuracy = validAccuracy
 
 
 # %%
 # Function to test the model with a batch of images and show the labels predictions
-def testBatch():
+def testBatch(model):
     # get batch of images from the test DataLoader
     dataIter = iter(testDataLoader)
     images, labels = next(dataIter)
@@ -373,7 +377,7 @@ def testBatch():
     )
 # %%
 # Function to validate the model with a batch of images from the validation set.
-def validBatch():
+def validBatch(model):
     model.eval()
     dataIter = iter(validDataLoader)
     images, labels = next(dataIter)
@@ -390,26 +394,37 @@ def validBatch():
     )
 
 # %%
-def trainOurModel():
+def trainOurModel(model_path = "firstF102Model.pth", best_model_path = ""):
+    if best_model_path == "":
+        best_model_path = model_path
+
+    best_accurracy = 0.0
+    if os.path.isfile(best_model_path):
+        best_model = ConvNet()
+        # best_optimizer = torch.optim.SGD(best_model.parameters(), lr=LEARN_RATE, weight_decay=WEIGHT_DECAY)
+        best_model.load_state_dict(torch.load(best_model_path))
+        best_accurracy = validateAccuracy(best_model)
+
+    model = ConvNet()
+
     # Let's build our model
-    train(NUM_EPOCHS)
+    train(model, NUM_EPOCHS, best_accurracy)
     print("Finished Training")
 
     # Test which classes performed well
-    validateAccuracy()
+    validateAccuracy(model)
 
     # Let's load the model we just created and test the accuracy per label
     model = ConvNet()
-    path = "firstF102Model.pth"
-    model.load_state_dict(torch.load(path))
+    model.load_state_dict(torch.load(model_path))
 
     # Test with batch of images
-    validBatch()
+    validBatch(model)
 
 
 # %%
 # Function to test what classes performed well
-def testClasses():
+def testClasses(model):
     model.eval()
     class_correct = list(0.0 for i in range(NUM_OF_CLASSES))
     class_total = list(0.0 for i in range(NUM_OF_CLASSES))
@@ -433,4 +448,4 @@ def testClasses():
 # %%
 # Begin the training
 trainOurModel()
-testClasses()
+# testClasses()
