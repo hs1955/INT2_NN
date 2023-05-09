@@ -177,7 +177,7 @@ class ConvNet(nn.Module):
             ("relu4", nn.ReLU()),
 
             # New layers underneath
-            ("pool", nn.MaxPool2d(2, 2)),
+            ("pool2", nn.MaxPool2d(2, 2)),
             ("conv6", nn.Conv2d(in_channels=24, out_channels=36, kernel_size=5, stride=1, padding=2)),
             ("bn6", nn.BatchNorm2d(num_features=36)),
             ("relu5", nn.ReLU()),
@@ -264,7 +264,7 @@ def plotAccuracies(trainAccuracies, validAccuracies):
 # %%
 # Training function. We simply have to loop over our data iterator and feed the inputs to the network and optimize.
 def train(numEpochs):
-    MAX_TRAIN_TIME = 60
+    MAX_TRAIN_TIME = 60 * 20
     CHECKPOINT_PERIOD = 20
     startTime = time.time()
     lastCheckpointTime = startTime
