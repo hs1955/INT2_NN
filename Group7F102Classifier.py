@@ -86,7 +86,7 @@ crop_size = 128
 trainTransforms = transforms.Compose(
     [
         transforms.Resize((resize_size, resize_size)),
-        # transforms.RandomRotation([-90, 180]),
+        transforms.RandomRotation([-90, 180]),
         transforms.RandomRotation(degrees=80),
         transforms.RandomAutocontrast(),
         transforms.CenterCrop((crop_size, crop_size)),
@@ -148,14 +148,12 @@ def showImage(image):
 trainClassIndexes = {v: k for k, v in trainingData.class_to_idx.items()}
 validClassIndexes = {v: k for k, v in validationData.class_to_idx.items()}
 testClassIndexes = {v: k for k, v in testingData.class_to_idx.items()}
-
-
 # %%
-def printSampleImages():
+def printSampleImages(dataLoader, classIndexes):
     dataIter = iter(trainDataLoader)
     images, labels = next(dataIter)
     showImage(torchvision.utils.make_grid(images))
-    print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(BATCH_SIZE)))
+    print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(batchSize)))
 
 # %%
 # The CNN Network
@@ -191,6 +189,7 @@ class ConvNet(nn.Module):
             ("fc1", nn.Linear(in_features=self.tensorMulti, out_features=102))
         ]))
 
+
         self.layers = self.features + self.classifier
 
     def forward(self, input_img):
@@ -199,14 +198,17 @@ class ConvNet(nn.Module):
         output = self.classifier(output.view(-1, self.tensorMulti))
         return output
 
+    # def _calc_num_of_pools(self):
+    #     return self.__str__().count("MaxPool2d")
+
 
 # Instantiate a neural network model
 model = ConvNet()
 
 # %%
-# Define the loss function with Classification Cross-Entropy loss and an optimizer with Adam optimizer
+# Define the loss function with Classification Cross-Entropy loss and 
+# an optimizer with Stochastic Gradient Descent as they marry well together
 lossFunction  = nn.CrossEntropyLoss()
-# Alternative optimizer
 optimizer = torch.optim.SGD(model.parameters(), lr=LEARN_RATE, weight_decay=WEIGHT_DECAY)
 # %%
 # Function to save the model
@@ -296,6 +298,7 @@ def train(numEpochs):
             # predict classes using images from the training set
             outputs = model(images)
             # Process outputs to get the weights relevant to the labels
+
             # compute the loss based on model output and real labels
             loss = lossFunction(outputs, labels)
             # Back-propagate the loss
@@ -407,6 +410,7 @@ def trainOurModel():
 # %%
 # Function to test what classes performed well
 def testClasses():
+    model.eval()
     class_correct = list(0.0 for i in range(NUM_OF_CLASSES))
     class_total = list(0.0 for i in range(NUM_OF_CLASSES))
     with torch.no_grad():
@@ -429,3 +433,4 @@ def testClasses():
 # %%
 # Begin the training
 trainOurModel()
+testClasses()
