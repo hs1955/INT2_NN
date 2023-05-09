@@ -36,13 +36,13 @@ import numpy as np
 import scipy.io as scio
 
 # %%
-# Hyperparameters
-batchSize = 16
-learnRate = 0.001
-weightDecay = 0.0001
-numberOfClasses = 102
-numEpochs = 20
-MAX_TRAIN_TIME = 60 * 20
+# Hyper Parameters
+BATCH_SIZE = 16
+LEARN_RATE = 0.001
+WEIGHT_DECAY = 0.0001
+NUM_OF_CLASSES = 102
+NUM_EPOCHS = 20
+MAX_TRAIN_TIME = 60 * 60
 CHECKPOINT_PERIOD = 20
 
 # %%
@@ -85,7 +85,8 @@ crop_size = 128
 trainTransforms = transforms.Compose(
     [
         transforms.Resize((resize_size, resize_size)),
-        transforms.RandomRotation([-90, 180]),
+        # transforms.RandomRotation([-90, 180]),
+        transforms.RandomRotation(degrees=80),
         transforms.RandomAutocontrast(),
         transforms.CenterCrop((crop_size, crop_size)),
         transforms.RandomHorizontalFlip(),
@@ -124,13 +125,13 @@ testingData = datasets.ImageFolder(
 # %%
 # Data loaders for use as input.
 trainDataLoader = torch.utils.data.DataLoader(
-    trainingData, batch_size=batchSize, shuffle=True
+    trainingData, batch_size=BATCH_SIZE, shuffle=True
 )
 validDataLoader = torch.utils.data.DataLoader(
-    validationData, batch_size=batchSize, shuffle=False
+    validationData, batch_size=BATCH_SIZE, shuffle=False
 )
 testDataLoader = torch.utils.data.DataLoader(
-    testingData, batch_size=batchSize, shuffle=False
+    testingData, batch_size=BATCH_SIZE, shuffle=False
 )
 
 
@@ -153,7 +154,7 @@ def printSampleImages():
     dataIter = iter(trainDataLoader)
     images, labels = next(dataIter)
     showImage(torchvision.utils.make_grid(images))
-    print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(batchSize)))
+    print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(BATCH_SIZE)))
 
 # %%
 # The CNN Network
@@ -205,7 +206,7 @@ model = ConvNet()
 # Define the loss function with Classification Cross-Entropy loss and an optimizer with Adam optimizer
 lossFunction  = nn.CrossEntropyLoss()
 # Alternative optimizer
-optimizer = torch.optim.SGD(model.parameters(), lr=learnRate, weight_decay=weightDecay)
+optimizer = torch.optim.SGD(model.parameters(), lr=LEARN_RATE, weight_decay=WEIGHT_DECAY)
 # %%
 # Function to save the model
 def saveModel():
@@ -281,7 +282,7 @@ def train(numEpochs):
         # Evaluation and Training of the Dataset
         model.train()
         runningLoss = 0.0
-        runningAccuracy = 0.0
+        # runningAccuracy = 0.0
 
         for i, (images, labels) in enumerate(trainDataLoader, 0):
             # Get the inputs
@@ -300,7 +301,7 @@ def train(numEpochs):
             # adjust parameters based on the calculated gradients
             optimizer.step()
             runningLoss += loss.item()  # extract the loss value
-            if i % batchSize == batchSize - 1:
+            if i % BATCH_SIZE == BATCH_SIZE - 1:
                 # print twice per epoch
                 # print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, runningLoss / batchSize))
                 # zero the loss
@@ -343,7 +344,7 @@ def testBatch():
     showImage(torchvision.utils.make_grid(images))
     print(
         "Real classes: ",
-        " ".join(f"{testClassIndexes[int(labels[j])]}" for j in range(batchSize)),
+        " ".join(f"{testClassIndexes[int(labels[j])]}" for j in range(BATCH_SIZE)),
     )
     # Let's see what if the model identifiers the  labels of those example
     outputs = model(images)
@@ -354,7 +355,7 @@ def testBatch():
     # show the predicted labels on the screen with the real ones for comparison
     print(
         "Predicted: ",
-        " ".join(f"{testClassIndexes[int(predicted[j])]}" for j in range(batchSize)),
+        " ".join(f"{testClassIndexes[int(predicted[j])]}" for j in range(BATCH_SIZE)),
     )
 # %%
 # Function to validate the model with a batch of images from the validation set.
@@ -365,19 +366,19 @@ def validBatch():
     showImage(torchvision.utils.make_grid(images))
     print(
         "Real classes: ",
-        " ".join(f"{validClassIndexes[int(labels[j])]}" for j in range(batchSize)),
+        " ".join(f"{validClassIndexes[int(labels[j])]}" for j in range(BATCH_SIZE)),
     )
     outputs = model(images)
     _, predicted = torch.max(outputs, 1)
     print(
         "Predicted: ",
-        " ".join(f"{validClassIndexes[int(predicted[j])]}" for j in range(batchSize)),
+        " ".join(f"{validClassIndexes[int(predicted[j])]}" for j in range(BATCH_SIZE)),
     )
 
 # %%
 def trainOurModel():
     # Let's build our model
-    train(numEpochs)
+    train(NUM_EPOCHS)
     print("Finished Training")
 
     # Test which classes performed well
@@ -395,20 +396,20 @@ def trainOurModel():
 # %%
 # Function to test what classes performed well
 def testClasses():
-    class_correct = list(0.0 for i in range(numberOfClasses))
-    class_total = list(0.0 for i in range(numberOfClasses))
+    class_correct = list(0.0 for i in range(NUM_OF_CLASSES))
+    class_total = list(0.0 for i in range(NUM_OF_CLASSES))
     with torch.no_grad():
         for data in testDataLoader:
             images, labels = data
             outputs = model(images)
             _, predicted = torch.max(outputs, 1)
             c = (predicted == labels).squeeze()
-            for i in range(batchSize):
+            for i in range(BATCH_SIZE):
                 label = labels[i]
                 class_correct[label] += c[i].item()
                 class_total[label] += 1
 
-    for i in range(numberOfClasses):
+    for i in range(NUM_OF_CLASSES):
         print(
             "Accuracy of %5s : %2d %%"
             % (testClassIndexes[i], 100 * class_correct[i] / class_total[i])
