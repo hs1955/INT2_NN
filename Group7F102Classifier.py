@@ -159,7 +159,7 @@ def printSampleImages(dataLoader, classIndexes):
     dataIter = iter(trainDataLoader)
     images, labels = next(dataIter)
     showImage(torchvision.utils.make_grid(images))
-    print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(batchSize)))
+    print(" ".join(f"{trainClassIndexes[int(labels[j])]}" for j in range(BATCH_SIZE)))
 
 # %%
 # The CNN Network
@@ -286,7 +286,7 @@ def train(model, numEpochs, bestAccuracy = 0.0):
     # Convert model parameters and buffers to CPU or Cuda
     model.to(device) # Regretfully AMD GPUs are unsupported for PyTorch models.
 
-    for epoch in range(numEpochs):  # loop over the dataset multiple times
+    for epoch in range(NUM_EPOCHS):  # loop over the dataset multiple times
         # Evaluation and Training of the Dataset
         model.train()
         runningLoss = 0.0
@@ -296,7 +296,6 @@ def train(model, numEpochs, bestAccuracy = 0.0):
         print("\n##############################")
         for i, (images, labels) in enumerate(trainDataLoader, 0):
             # Get the inputs
-            # Documentation on Variable: https://sebarnold.net/tutorials/beginner/examples_autograd/two_layer_net_autograd.html
             images = torch.autograd.Variable(images.to(device))
             labels = torch.autograd.Variable(labels.to(device))
             # Zero the parameter gradients
@@ -330,15 +329,16 @@ def train(model, numEpochs, bestAccuracy = 0.0):
         )
         elapsedTime = time.time() - lastCheckpointTime
         if elapsedTime >= CHECKPOINT_PERIOD:
-            saveModel(model)
-            lastCheckpointTime = time.time()
+            if validAccuracy > bestAccuracy:
+                saveModel()
+                lastCheckpointTime = time.time()
 
         # Check if the maximum training time has elapsed
         elapsedTime  = time.time() - startTime
         if elapsedTime  >= MAX_TRAIN_TIME:
             saveModel(model)
             break
-
+        
         if validAccuracy > runningAccuracy:
             print("Improvement made: %2d% better." % (validAccuracy - runningAccuracy))
             runningAccuracy = validAccuracy
