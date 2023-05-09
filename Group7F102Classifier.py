@@ -331,13 +331,15 @@ def train(numEpochs):
         if elapsedTime  >= MAX_TRAIN_TIME:
             saveModel()
             break
-        
+
         if validAccuracy > runningAccuracy:
+            print(f"Improvement made: {validAccuracy - runningAccuracy}% better.")
             runningAccuracy = validAccuracy
             fails_to_imprv = 0
         else:
             fails_to_imprv += 1
-        
+            print(f"Failed to improve: {fails_to_imprv}, {runningAccuracy - validAccuracy}% worse")
+
         # we want to save the model if the accuracy is the best
         if validAccuracy > bestAccuracy or fails_to_imprv > CHANCES_TO_IMPROVE:
             saveModel()
