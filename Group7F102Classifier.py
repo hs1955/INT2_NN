@@ -175,6 +175,7 @@ class ConvNet(nn.Module):
             ("conv5", nn.Conv2d(in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2)),
             ("bn5", nn.BatchNorm2d(num_features=24)),
             ("relu4", nn.ReLU()),
+
             # New layers underneath
             ("pool", nn.MaxPool2d(2, 2)),
             ("conv6", nn.Conv2d(in_channels=24, out_channels=36, kernel_size=5, stride=1, padding=2)),
@@ -190,7 +191,7 @@ class ConvNet(nn.Module):
 
     def forward(self, input_img):
         output = self.features(input_img)
-        print(output.shape)
+        # print(output.shape)
         output = self.classifier(output.view(-1, self.tensorMulti))
         return output
 
