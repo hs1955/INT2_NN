@@ -448,5 +448,5 @@ def testClasses(model):
 
 # %%
 # Begin the training
-trainOurModel("firstF102Model-200.pth")
+trainOurModel("firstF102Model-204.pth")
 # testClasses()
