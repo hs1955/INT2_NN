@@ -159,8 +159,7 @@ def printSampleImages():
 class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-        self.numOfPools = 2
-        self.tensorMulti = 36 * (crop_size // (2 * self.numOfPools))**2
+        self.tensorMulti = 36 * 64 * 64
 
         self.features = nn.Sequential(OrderedDict([
             ("conv1", nn.Conv2d(in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2)),
@@ -191,7 +190,7 @@ class ConvNet(nn.Module):
 
     def forward(self, input_img):
         output = self.features(input_img)
-        # print(output.shape)
+        print(output.shape)
         output = self.classifier(output.view(-1, self.tensorMulti))
         return output
 
