@@ -159,7 +159,7 @@ def printSampleImages():
 class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-        self.numOfPools = 1
+        self.numOfPools = 2
         self.tensorMulti = 36 * (crop_size // (2 * self.numOfPools))**2
 
         self.features = nn.Sequential(OrderedDict([
@@ -177,6 +177,7 @@ class ConvNet(nn.Module):
             ("bn5", nn.BatchNorm2d(num_features=24)),
             ("relu4", nn.ReLU()),
             # New layers underneath
+            ("pool", nn.MaxPool2d(2, 2)),
             ("conv6", nn.Conv2d(in_channels=24, out_channels=36, kernel_size=5, stride=1, padding=2)),
             ("bn6", nn.BatchNorm2d(num_features=36)),
             ("relu5", nn.ReLU()),
