@@ -338,7 +338,7 @@ def train(numEpochs):
             fails_to_imprv = 0
         else:
             fails_to_imprv += 1
-            print(f"Failed to improve: {fails_to_imprv}, {runningAccuracy - validAccuracy}% worse")
+            print(f"Failed to improve: {fails_to_imprv}, {runningAccuracy - validAccuracy}% worse.")
 
         # we want to save the model if the accuracy is the best
         if validAccuracy > bestAccuracy or fails_to_imprv > CHANCES_TO_IMPROVE:
