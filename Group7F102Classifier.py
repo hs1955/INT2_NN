@@ -292,6 +292,7 @@ def train(numEpochs):
         runningAccuracy = 0.0
         fails_to_imprv = 0
 
+        print("\n##############################")
         for i, (images, labels) in enumerate(trainDataLoader, 0):
             # Get the inputs
             # Documentation on Variable: https://sebarnold.net/tutorials/beginner/examples_autograd/two_layer_net_autograd.html
