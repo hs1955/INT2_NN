@@ -52,8 +52,8 @@ CHANCES_TO_IMPROVE = 5
 CHECKPOINT_PERIOD = 100
 
 # Transforms
-RESIZE_SIZE = 222
-CROP_SIZE = 204
+RESIZE_SIZE = 140
+CROP_SIZE = 128
 
 # %%
 # Create train, valid and test directories to sort dataset into.
@@ -184,7 +184,7 @@ class ConvNet(nn.Module):
             ("conv5", nn.Conv2d(in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2)),
             ("bn5", nn.BatchNorm2d(num_features=24)),
             ("relu4", nn.ReLU()),
-            ("dp1", nn.Dropout2d()),
+            # ("dp1", nn.Dropout2d(p = 0.1)),
 
             # New layers underneath
             # ("pool2", nn.MaxPool2d(2, 2)),
@@ -224,13 +224,12 @@ lossFunction  = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=LEARN_RATE, weight_decay=WEIGHT_DECAY)
 # %%
 # Function to save the model
-def saveModel(model):
-    path = "./firstF102Model.pth"
+def saveModel(path = "./firstF102Model.pth"):
     torch.save(model.state_dict(), path)
 
 # %%
 # Function to test the model with the validation dataset and print the accuracy for the validation images
-def trainingAccuracy(model):
+def trainingAccuracy():
     model.eval()
     accuracy = 0.0
     total = 0.0
@@ -249,7 +248,7 @@ def trainingAccuracy(model):
     accuracy = 100 * accuracy / total
     return accuracy
 
-def validateAccuracy(model):
+def validateAccuracy():
     model.eval()
     accuracy = 0.0
     total = 0.0
@@ -281,7 +280,7 @@ def plotAccuracies(trainAccuracies, validAccuracies):
     ax1.legend()
 # %%
 # Training function. We simply have to loop over our data iterator and feed the inputs to the network and optimize.
-def train(model, bestAccuracy = 0.0):
+def train(save_model_path, bestAccuracy = 0.0):
     startTime = time.time()
     lastCheckpointTime = startTime
     trainAccuracies = []
@@ -324,9 +323,9 @@ def train(model, bestAccuracy = 0.0):
                 runningLoss = 0.0
 
         # Compute and print the average accuracy fo this epoch when tested over all validation images
-        trainAccuracy = trainingAccuracy(model)
+        trainAccuracy = trainingAccuracy()
         trainAccuracies.append(trainAccuracy)
-        validAccuracy = validateAccuracy(model)
+        validAccuracy = validateAccuracy()
         validAccuracies.append(validAccuracy)
         plotAccuracies(trainAccuracies, validAccuracies)
         print(
@@ -337,13 +336,13 @@ def train(model, bestAccuracy = 0.0):
         )
         elapsedTime = time.time() - lastCheckpointTime
         if elapsedTime >= CHECKPOINT_PERIOD and validAccuracy > bestAccuracy:
-            saveModel(model)
+            saveModel(save_model_path)
             lastCheckpointTime = time.time()
 
         # Check if the maximum training time has elapsed
         elapsedTime  = time.time() - startTime
         if elapsedTime  >= MAX_TRAIN_TIME and validAccuracy > bestAccuracy:
-            saveModel(model)
+            saveModel(save_model_path)
             break
 
         if validAccuracy > runningAccuracy:
@@ -356,13 +355,13 @@ def train(model, bestAccuracy = 0.0):
 
         # we want to save the model if the accuracy is the best
         if validAccuracy > bestAccuracy or fails_to_imprv > CHANCES_TO_IMPROVE:
-            saveModel(model)
+            saveModel(save_model_path)
             bestAccuracy = validAccuracy
 
 
 # %%
 # Function to test the model with a batch of images and show the labels predictions
-def testBatch(model):
+def testBatch():
     # get batch of images from the test DataLoader
     dataIter = iter(testDataLoader)
     images, labels = next(dataIter)
@@ -384,7 +383,7 @@ def testBatch(model):
     )
 # %%
 # Function to validate the model with a batch of images from the validation set.
-def validBatch(model):
+def validBatch():
     model.eval()
     dataIter = iter(validDataLoader)
     images, labels = next(dataIter)
@@ -401,32 +400,27 @@ def validBatch(model):
     )
 
 # %%
-def trainOurModel(model_path = "firstF102Model.pth", best_model_path = ""):
-    if best_model_path == "":
-        best_model_path = model_path
-
-    best_accurracy = 0.0
-    if os.path.isfile(best_model_path):
-        best_model = ConvNet()
-        # best_optimizer = torch.optim.SGD(best_model.parameters(), lr=LEARN_RATE, weight_decay=WEIGHT_DECAY)
-        best_model.load_state_dict(torch.load(best_model_path))
-        best_accurracy = validateAccuracy(best_model)
-
-    model = ConvNet()
+def trainOurModel(save_model_path = "firstF102Model.pth"):
+    # best_accurracy = 0.0
+    # if os.path.isfile(model_path):
+    #     best_model = ConvNet()
+    #     # best_optimizer = torch.optim.SGD(best_model.parameters(), lr=LEARN_RATE, weight_decay=WEIGHT_DECAY)
+    #     best_model.load_state_dict(torch.load(model_path))
+    #     best_accurracy = validateAccuracy(best_model)
 
     # Let's build our model
-    train(model, best_accurracy)
+    train(save_model_path, 0.0)
     print("Finished Training")
 
     # Test which classes performed well
-    validateAccuracy(model)
+    validateAccuracy()
 
     # Let's load the model we just created and test the accuracy per label
-    model = ConvNet()
-    model.load_state_dict(torch.load(model_path))
+    # Optimizer
+    model.load_state_dict(torch.load(save_model_path))
 
     # Test with batch of images
-    validBatch(model)
+    validBatch()
 
 
 # %%
@@ -454,5 +448,5 @@ def testClasses(model):
 
 # %%
 # Begin the training
-trainOurModel("firstF102Model200.pth")
+trainOurModel("firstF102Model-128-2.pth")
 # testClasses()
