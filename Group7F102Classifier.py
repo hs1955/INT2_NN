@@ -331,8 +331,8 @@ def train(save_model_path, bestAccuracy = 0.0):
         print(
             "For epoch",
             epoch + 1,
-            "the training accuracy over the whole training set is %d %%" % (trainAccuracy),
-            "\nthe validation accuracy over the whole validation set is %d %%" % (validAccuracy),
+            "the training accuracy over the whole training set is %.2f %%" % (trainAccuracy),
+            "\nthe validation accuracy over the whole validation set is %.2f %%" % (validAccuracy),
         )
         elapsedTime = time.time() - lastCheckpointTime
         if elapsedTime >= CHECKPOINT_PERIOD and validAccuracy > bestAccuracy:
