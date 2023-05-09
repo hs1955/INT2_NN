@@ -42,6 +42,8 @@ learnRate = 0.001
 weightDecay = 0.0001
 numberOfClasses = 102
 numEpochs = 20
+MAX_TRAIN_TIME = 60 * 20
+CHECKPOINT_PERIOD = 20
 
 # %%
 # Create train, valid and test directories to sort dataset into.
@@ -264,8 +266,6 @@ def plotAccuracies(trainAccuracies, validAccuracies):
 # %%
 # Training function. We simply have to loop over our data iterator and feed the inputs to the network and optimize.
 def train(numEpochs):
-    MAX_TRAIN_TIME = 60 * 20
-    CHECKPOINT_PERIOD = 20
     startTime = time.time()
     lastCheckpointTime = startTime
     bestAccuracy = 0.0
