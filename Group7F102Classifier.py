@@ -184,7 +184,7 @@ class ConvNet(nn.Module):
             ("conv5", nn.Conv2d(in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2)),
             ("bn5", nn.BatchNorm2d(num_features=24)),
             ("relu4", nn.ReLU()),
-            ("dp1", nn.Dropout2d(p = 0.1)),
+            ("dp1", nn.Dropout2d(p = 0.2)),
 
             # New layers underneath
             # ("pool2", nn.MaxPool2d(2, 2)),
@@ -448,5 +448,5 @@ def testClasses(model):
 
 # %%
 # Begin the training
-trainOurModel("firstF102Model-200.pth")
+trainOurModel("firstF102Model-204.pth")
 # testClasses()
