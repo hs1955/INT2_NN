@@ -38,13 +38,21 @@ import scipy.io as scio
 # %%
 # Hyper Parameters
 BATCH_SIZE = 16
+NUM_OF_CLASSES = 102
+
+# Optimizing
 LEARN_RATE = 0.001
 WEIGHT_DECAY = 0.0001
-NUM_OF_CLASSES = 102
 NUM_EPOCHS = 100
+
+# Training
 MAX_TRAIN_TIME = 60 * 60 * 6
 CHECKPOINT_PERIOD = 100
 CHANCES_TO_IMPROVE = 10
+
+# Transforms
+RESIZE_SIZE = 256
+CROP_SIZE = 232
 
 # %%
 # Create train, valid and test directories to sort dataset into.
@@ -81,15 +89,13 @@ def partitionData(imageLabels, setid, sortedPath, dataPath):
 # Commonly-used normalisation values across numerous NNs like Resnet18 and ImageNet
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
-resize_size = 140
-crop_size = 128
 trainTransforms = transforms.Compose(
     [
-        transforms.Resize((resize_size, resize_size)),
+        transforms.Resize((RESIZE_SIZE, RESIZE_SIZE)),
         # transforms.RandomRotation([-90, 180]),
-        transforms.RandomRotation(degrees=80),
+        transforms.RandomRotation(degrees=65),
         transforms.RandomAutocontrast(),
-        transforms.CenterCrop((crop_size, crop_size)),
+        transforms.CenterCrop((CROP_SIZE, CROP_SIZE)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
@@ -99,7 +105,7 @@ trainTransforms = transforms.Compose(
 )
 testTransforms = validTransforms = transforms.Compose(
     [
-        transforms.Resize((crop_size, crop_size)),
+        transforms.Resize((CROP_SIZE, CROP_SIZE)),
         transforms.ToTensor(),
         transforms.Normalize(mean, std),
     ]
@@ -293,10 +299,9 @@ def train(numEpochs):
             labels = torch.autograd.Variable(labels.to(device))
             # Zero the parameter gradients
             optimizer.zero_grad()
-            # predict classes using images from the training set
+            # Predict classes using images from the training set
             outputs = model(images)
-            # Process outputs to get the weights relevant to the labels
-            # compute the loss based on model output and real labels
+            # Compute the loss based on model output and real labels
             loss = lossFunction(outputs, labels)
             # Back-propagate the loss
             loss.backward()
@@ -305,7 +310,7 @@ def train(numEpochs):
             runningLoss += loss.item()  # extract the loss value
             if i % BATCH_SIZE == BATCH_SIZE - 1:
                 # print twice per epoch
-                # print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, runningLoss / batchSize))
+                print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, runningLoss / BATCH_SIZE))
                 # zero the loss
                 runningLoss = 0.0
 
