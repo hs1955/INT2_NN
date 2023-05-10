@@ -6,5 +6,3 @@ data/**
 102flowers.tar
 setid.mat
 imagelabels.mat
-firstF102Model.pth
-firstF102Model-*.pth
