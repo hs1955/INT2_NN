@@ -302,7 +302,6 @@ def train(save_model_path, bestAccuracy = 0.0):
         print("\n##############################")
         for i, (images, labels) in enumerate(trainDataLoader, 0):
             # Get the inputs
-            # Documentation on Variable: https://sebarnold.net/tutorials/beginner/examples_autograd/two_layer_net_autograd.html
             images = torch.autograd.Variable(images.to(device))
             labels = torch.autograd.Variable(labels.to(device))
             # Zero the parameter gradients
@@ -344,7 +343,7 @@ def train(save_model_path, bestAccuracy = 0.0):
         if elapsedTime  >= MAX_TRAIN_TIME and validAccuracy > bestAccuracy:
             saveModel(save_model_path)
             break
-
+        
         if validAccuracy > runningAccuracy:
             print("Improvement made: %.2f%% better." % (validAccuracy - runningAccuracy))
             runningAccuracy = validAccuracy
