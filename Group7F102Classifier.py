@@ -43,6 +43,7 @@ NUM_OF_CLASSES = 102
 # Optimizing
 LEARN_RATE = 0.001
 WEIGHT_DECAY = 0.0001
+MOMENTUM = 0.9
 
 # Training
 MAX_TRAIN_TIME = 60 * 60 * 6
@@ -52,8 +53,8 @@ CHANCES_TO_IMPROVE = 5
 CHECKPOINT_PERIOD = 100
 
 # Transforms
-RESIZE_SIZE = 232
-CROP_SIZE = 204
+CROP_SIZE = 500
+RESIZE_SIZE = 128
 
 # %%
 # Create train, valid and test directories to sort dataset into.
@@ -92,11 +93,11 @@ mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
 trainTransforms = transforms.Compose(
     [
+        transforms.CenterCrop((CROP_SIZE, CROP_SIZE)),
         transforms.Resize((RESIZE_SIZE, RESIZE_SIZE)),
         # transforms.RandomRotation([-90, 180]),
-        transforms.RandomRotation(degrees=65),
+        transforms.RandomRotation(degrees=90),
         transforms.RandomAutocontrast(),
-        transforms.CenterCrop((CROP_SIZE, CROP_SIZE)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
@@ -106,7 +107,7 @@ trainTransforms = transforms.Compose(
 )
 testTransforms = validTransforms = transforms.Compose(
     [
-        transforms.Resize((CROP_SIZE, CROP_SIZE)),
+        transforms.Resize((RESIZE_SIZE, RESIZE_SIZE)),
         transforms.ToTensor(),
         transforms.Normalize(mean, std),
     ]
@@ -164,48 +165,83 @@ def printSampleImages(dataLoader, classIndexes):
 
 # %%
 # The CNN Network
+def init_weights(m):
+  if type(m) == nn.Linear:
+    nn.init.xavier_uniform_(m.weight)
+    m.bias.data.fill_(0.0)
+
 # Define a convolution neural network
 class ConvNet(nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-        self.tensorMulti = 24 * (CROP_SIZE//2)**2
+        self.tensorMulti = 128 * 32**2
 
-        self.features = nn.Sequential(OrderedDict([
-            ("conv1", nn.Conv2d(in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2)),
-            ("bn1", nn.BatchNorm2d(num_features=12)),
-            ("relu1", nn.ReLU()),
-            ("conv2", nn.Conv2d(in_channels=12, out_channels=12, kernel_size=5, stride=1, padding=2)),
-            ("bn2", nn.BatchNorm2d(num_features=12)),
-            ("relu2", nn.ReLU()),
-            ("pool", nn.MaxPool2d(2, 2)),
-            ("conv4", nn.Conv2d(in_channels=12, out_channels=24, kernel_size=5, stride=1, padding=2)),
-            ("bn4", nn.BatchNorm2d(num_features=24)),
-            ("relu3", nn.ReLU()),
-            ("conv5", nn.Conv2d(in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2)),
-            ("bn5", nn.BatchNorm2d(num_features=24)),
-            ("relu4", nn.ReLU()),
-            ("dp1", nn.Dropout2d(p = 0.2)),
+        self.features = nn.Sequential(
+            nn.Conv2d(3,32,kernel_size=3,padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32,64,kernel_size=3,stride=1,padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2,2),
+
+            nn.Conv2d(64,128,kernel_size=3,stride=1,padding=1),
+            nn.ReLU(),
+            nn.Conv2d(128,128,kernel_size=3,stride=1,padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2,2),
+
+            # nn.Conv2d(128,256,kernel_size=3,stride=1,padding=1),
+            # nn.ReLU(),
+            # nn.Conv2d(256,256,kernel_size=3,stride=1,padding=1),
+            # nn.ReLU(),
+            # # nn.Dropout2d(p=0.5),
+            # nn.MaxPool2d(2,2)
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(self.tensorMulti,1024),
+            # nn.ReLU(),
+            # nn.Linear(1024,512),
+            nn.ReLU(),
+            nn.Linear(1024,102)
+        )
+
+        # self.features = nn.Sequential(OrderedDict([
+            # ("conv1", nn.Conv2d(in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2)),
+            # ("bn1", nn.BatchNorm2d(num_features=12)),
+            # ("relu1", nn.ReLU()),
+            # ("conv2", nn.Conv2d(in_channels=12, out_channels=12, kernel_size=5, stride=1, padding=2)),
+            # ("bn2", nn.BatchNorm2d(num_features=12)),
+            # ("relu2", nn.ReLU()),
+            # ("pool", nn.MaxPool2d(2, 2)),
+            # ("conv4", nn.Conv2d(in_channels=12, out_channels=24, kernel_size=5, stride=1, padding=2)),
+            # ("bn4", nn.BatchNorm2d(num_features=24)),
+            # ("relu3", nn.ReLU()),
+            # ("conv5", nn.Conv2d(in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2)),
+            # ("bn5", nn.BatchNorm2d(num_features=24)),
+            # ("relu4", nn.ReLU()),
+            # ("dp1", nn.Dropout2d(p = 0.5)),
 
             # New layers underneath
             # ("pool2", nn.MaxPool2d(2, 2)),
             # ("conv6", nn.Conv2d(in_channels=24, out_channels=36, kernel_size=5, stride=1, padding=2)),
             # ("bn6", nn.BatchNorm2d(num_features=36)),
             # ("relu5", nn.ReLU()),
-        ]))
+        # ]))
 
-        self.classifier = nn.Sequential(OrderedDict([
-            # ("fc0", nn.Linear(in_features=self.tensorMulti, out_features=self.tensorMulti//NUM_OF_CLASSES)),
-            # ("dp1", nn.Dropout2d()),
-            ("fc1", nn.Linear(in_features=self.tensorMulti, out_features=NUM_OF_CLASSES)),
-        ]))
-
+        # self.classifier = nn.Sequential(OrderedDict([
+        #     ("fc0", nn.Linear(in_features=self.tensorMulti, out_features=self.tensorMulti//NUM_OF_CLASSES)),
+        #     ("relu6", nn.ReLU()),
+        #     ("fc1", nn.Linear(in_features=self.tensorMulti//NUM_OF_CLASSES, out_features=NUM_OF_CLASSES)),
+        # ]))
 
         self.layers = self.features + self.classifier
+        self.layers.apply(init_weights)
 
     def forward(self, input_img):
         output = self.features(input_img)
         # print(output.shape)
-        output = output.view(-1, self.tensorMulti)
+        # output = output.view(-1, self.tensorMulti)
         # print(output.shape)
         output = self.classifier(output)
         return output
@@ -221,7 +257,7 @@ model = ConvNet()
 # Define the loss function with Classification Cross-Entropy loss and an optimizer with SGD optimizer
 lossFunction  = nn.CrossEntropyLoss()
 # Optimizer
-optimizer = torch.optim.SGD(model.parameters(), lr=LEARN_RATE, weight_decay=WEIGHT_DECAY)
+optimizer = torch.optim.SGD(model.parameters(), lr=LEARN_RATE, weight_decay=WEIGHT_DECAY, momentum=MOMENTUM)
 # %%
 # Function to save the model
 def saveModel(path = "./firstF102Model.pth"):
@@ -271,10 +307,9 @@ def validateAccuracy():
 def plotAccuracies(trainAccuracies, validAccuracies):
     epochs = len(trainAccuracies)
     fig, ax1 = plt.subplots()
-    ax2 = ax1.twinx()
     ax1.plot(range(epochs), trainAccuracies, label='Training accuracy')
     ax1.plot(range(epochs), validAccuracies, label='Validation accuracy')
-    ax1.set_title('Training and Validation Accuracies against Loss')
+    ax1.set_title('Training and Validation Accuracies per Epoch')
     ax1.set_xlabel('Epoch')
     ax1.set_ylabel('Accuracy')
     ax1.legend()
@@ -339,12 +374,6 @@ def train(save_model_path, bestAccuracy = 0.0):
             saveModel(save_model_path)
             lastCheckpointTime = time.time()
 
-        # Check if the maximum training time has elapsed
-        elapsedTime  = time.time() - startTime
-        if elapsedTime  >= MAX_TRAIN_TIME and validAccuracy > bestAccuracy:
-            saveModel(save_model_path)
-            break
-
         if validAccuracy > runningAccuracy:
             print("Improvement made: %.2f%% better." % (validAccuracy - runningAccuracy))
             runningAccuracy = validAccuracy
@@ -353,8 +382,15 @@ def train(save_model_path, bestAccuracy = 0.0):
             fails_to_imprv += 1
             print("Failed to improve: %d, %.2f%% worse." % (fails_to_imprv, (runningAccuracy - validAccuracy)))
 
+        # Check if the maximum training time has elapsed
+        elapsedTime  = time.time() - startTime
+        if (elapsedTime  >= MAX_TRAIN_TIME and validAccuracy > bestAccuracy) or (fails_to_imprv > CHANCES_TO_IMPROVE):
+            saveModel(save_model_path)
+            break
+
+
         # we want to save the model if the accuracy is the best
-        if validAccuracy > bestAccuracy or fails_to_imprv > CHANCES_TO_IMPROVE:
+        if validAccuracy > bestAccuracy:
             saveModel(save_model_path)
             bestAccuracy = validAccuracy
 
@@ -448,5 +484,5 @@ def testClasses(model):
 
 # %%
 # Begin the training
-trainOurModel("firstF102Model-204.pth")
+trainOurModel("firstF102Model-500.pth")
 # testClasses()
