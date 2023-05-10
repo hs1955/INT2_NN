@@ -176,18 +176,18 @@ class ConvNet(nn.Module):
         super(ConvNet, self).__init__()
         self.tensorMulti = 128 * 32**2
 
-        self.features = nn.Sequential(
-            nn.Conv2d(3,32,kernel_size=3,padding=1),
-            nn.ReLU(),
-            nn.Conv2d(32,64,kernel_size=3,stride=1,padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2,2),
+        # self.features = nn.Sequential(
+        #     nn.Conv2d(3,32,kernel_size=3,padding=1),
+        #     nn.ReLU(),
+        #     nn.Conv2d(32,64,kernel_size=3,stride=1,padding=1),
+        #     nn.ReLU(),
+        #     nn.MaxPool2d(2,2),
 
-            nn.Conv2d(64,128,kernel_size=3,stride=1,padding=1),
-            nn.ReLU(),
-            nn.Conv2d(128,128,kernel_size=3,stride=1,padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2,2),
+        #     nn.Conv2d(64,128,kernel_size=3,stride=1,padding=1),
+        #     nn.ReLU(),
+        #     nn.Conv2d(128,128,kernel_size=3,stride=1,padding=1),
+        #     nn.ReLU(),
+        #     nn.MaxPool2d(2,2),
 
             # nn.Conv2d(128,256,kernel_size=3,stride=1,padding=1),
             # nn.ReLU(),
@@ -195,45 +195,45 @@ class ConvNet(nn.Module):
             # nn.ReLU(),
             # # nn.Dropout2d(p=0.5),
             # nn.MaxPool2d(2,2)
-        )
+        # )
 
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(self.tensorMulti,1024),
-            # nn.ReLU(),
-            # nn.Linear(1024,512),
-            nn.ReLU(),
-            nn.Linear(1024,102)
-        )
+        # self.classifier = nn.Sequential(
+        #     nn.Flatten(),
+        #     nn.Linear(self.tensorMulti,1024),
+        #     # nn.ReLU(),
+        #     # nn.Linear(1024,512),
+        #     nn.ReLU(),
+        #     nn.Linear(1024,102)
+        # )
 
-        # self.features = nn.Sequential(OrderedDict([
-            # ("conv1", nn.Conv2d(in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2)),
-            # ("bn1", nn.BatchNorm2d(num_features=12)),
-            # ("relu1", nn.ReLU()),
-            # ("conv2", nn.Conv2d(in_channels=12, out_channels=12, kernel_size=5, stride=1, padding=2)),
-            # ("bn2", nn.BatchNorm2d(num_features=12)),
-            # ("relu2", nn.ReLU()),
-            # ("pool", nn.MaxPool2d(2, 2)),
-            # ("conv4", nn.Conv2d(in_channels=12, out_channels=24, kernel_size=5, stride=1, padding=2)),
-            # ("bn4", nn.BatchNorm2d(num_features=24)),
-            # ("relu3", nn.ReLU()),
-            # ("conv5", nn.Conv2d(in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2)),
-            # ("bn5", nn.BatchNorm2d(num_features=24)),
-            # ("relu4", nn.ReLU()),
+        self.features = nn.Sequential(OrderedDict([
+            ("conv1", nn.Conv2d(in_channels=3, out_channels=12, kernel_size=5, stride=1, padding=2)),
+            ("bn1", nn.BatchNorm2d(num_features=12)),
+            ("relu1", nn.ReLU()),
+            ("conv2", nn.Conv2d(in_channels=12, out_channels=12, kernel_size=5, stride=1, padding=2)),
+            ("bn2", nn.BatchNorm2d(num_features=12)),
+            ("relu2", nn.ReLU()),
+            ("pool", nn.MaxPool2d(2, 2)),
+            ("conv4", nn.Conv2d(in_channels=12, out_channels=24, kernel_size=5, stride=1, padding=2)),
+            ("bn4", nn.BatchNorm2d(num_features=24)),
+            ("relu3", nn.ReLU()),
+            ("conv5", nn.Conv2d(in_channels=24, out_channels=24, kernel_size=5, stride=1, padding=2)),
+            ("bn5", nn.BatchNorm2d(num_features=24)),
+            ("relu4", nn.ReLU()),
             # ("dp1", nn.Dropout2d(p = 0.5)),
 
-            # New layers underneath
+            # # New layers underneath
             # ("pool2", nn.MaxPool2d(2, 2)),
             # ("conv6", nn.Conv2d(in_channels=24, out_channels=36, kernel_size=5, stride=1, padding=2)),
             # ("bn6", nn.BatchNorm2d(num_features=36)),
             # ("relu5", nn.ReLU()),
-        # ]))
+        ]))
 
-        # self.classifier = nn.Sequential(OrderedDict([
-        #     ("fc0", nn.Linear(in_features=self.tensorMulti, out_features=self.tensorMulti//NUM_OF_CLASSES)),
-        #     ("relu6", nn.ReLU()),
-        #     ("fc1", nn.Linear(in_features=self.tensorMulti//NUM_OF_CLASSES, out_features=NUM_OF_CLASSES)),
-        # ]))
+        self.classifier = nn.Sequential(OrderedDict([
+            # ("fc0", nn.Linear(in_features=self.tensorMulti, out_features=self.tensorMulti//NUM_OF_CLASSES)),
+            # ("relu6", nn.ReLU()),
+            ("fc1", nn.Linear(in_features=self.tensorMulti, out_features=NUM_OF_CLASSES)),
+        ]))
 
         self.layers = self.features + self.classifier
         self.layers.apply(init_weights)
@@ -321,7 +321,7 @@ def train(save_model_path, bestAccuracy = 0.0):
     trainAccuracies = []
     validAccuracies = []
     # Define your execution device
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("The model will be running on", device, "device")
     # Convert model parameters and buffers to CPU or Cuda
     model.to(device) # Regretfully AMD GPUs are unsupported for PyTorch models.
