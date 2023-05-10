@@ -16,6 +16,7 @@ import math
 import os
 import shutil
 import time
+import gc
 
 # PyTorch model and training necessities
 import torch
@@ -42,6 +43,8 @@ import numpy as np
 # Unpacker for .mat files
 import scipy.io as scio
 
+torch.cuda.empty_cache()
+
 # Hyper Parameters
 BATCH_SIZE = 16
 NUM_OF_CLASSES = 102
@@ -58,8 +61,8 @@ CHANCES_TO_IMPROVE = 5
 CHECKPOINT_PERIOD = 100
 
 # Transforms
-RESIZE_SIZE = 128
 CROP_SIZE = 500
+RESIZE_SIZE = 128
 
 # Create train, valid and test directories to sort dataset into.
 def makePartitionDirs():
@@ -114,14 +117,6 @@ testTransforms = validTransforms = transforms.Compose(
     ]
 )
 
-# This was gathered from the old manual partitioner we constructed- the data loaders 
-# were derrived from datasets.ImageFolder- which had the "class_to_idx" attribute.
-# This attributed mapped all class (flower) names as keys, with their indexes as the values.
-# The inversion of these key:Value pairs then became the basis for most of the image display
-# code, as iterating over both the old and new data loaders yielded "labels" that are 
-# actually the class indexes- not class names. Hence:
-horribleClassIndexMap = {'1': 0, '10': 1, '100': 2, '101': 3, '102': 4, '11': 5, '12': 6, '13': 7, '14': 8, '15': 9, '16': 10, '17': 11, '18': 12, '19': 13, '2': 14, '20': 15, '21': 16, '22': 17, '23': 18, '24': 19, '25': 20, '26': 21, '27': 22, '28': 23, '29': 24, '3': 25, '30': 26, '31': 27, '32': 28, '33': 29, '34': 30, '35': 31, '36': 32, '37': 33, '38': 34, '39': 35, '4': 36, '40': 37, '41': 38, '42': 39, '43': 40, '44': 41, '45': 42, '46': 43, '47': 44, '48': 45, '49': 46, '5': 47, '50': 48, '51': 49, '52': 50, '53': 51, '54': 52, '55': 53, '56': 54, '57': 55, '58': 56, '59': 57, '6': 58, '60': 59, '61': 60, '62': 61, '63': 62, '64': 63, '65': 64, '66': 65, '67': 66, '68': 67, '69': 68, '7': 69, '70': 70, '71': 71, '72': 72, '73': 73, '74': 74, '75': 75, '76': 76, '77': 77, '78': 78, '79': 79, '8': 80, '80': 81, '81': 82, '82': 83, '83': 84, '84': 85, '85': 86, '86': 87, '87': 88, '88': 89, '89': 90, '9': 91, '90': 92, '91': 93, '92': 94, '93': 95, '94': 96, '95': 97, '96': 98, '97': 99, '98': 100, '99': 101}
-lessHorribleClassIndexMap = {v:k for k,v in horribleClassIndexMap.items()}
 dataPath = "data/flowers-102"
 setid = scio.loadmat(dataPath + f"/setid.mat")
 imageLabels: dict = scio.loadmat(dataPath + f"/imagelabels.mat")
@@ -189,7 +184,10 @@ class ConvNet(nn.Module):
 
     def forward(self, input_img):
         output = self.features(input_img)
-        # print(output.shape)
+        # output = input_img
+        # for layer in self.features:
+        #   output = layer(output)
+        #   print(output.shape)
         # output = output.view(-1, self.tensorMulti)
         # print(output.shape)
         output = self.classifier(output)
@@ -197,6 +195,12 @@ class ConvNet(nn.Module):
 
 # Instantiate a neural network model
 model = ConvNet()
+
+# Define your execution device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("The model will be running on", device, "device")
+
+model = model.to(device)
 
 # Define the loss function with Classification Cross-Entropy loss and an optimizer with SGD optimizer
 lossFunction  = nn.CrossEntropyLoss()
@@ -208,7 +212,7 @@ def saveModel(path = "./firstF102Model.pth"):
     torch.save(model.state_dict(), path)
 
 # Function to test the model with the validation dataset and print the accuracy for the validation images
-def trainingAccuracy():
+def trainingAccuracy(device):
     model.eval()
     accuracy = 0.0
     total = 0.0
@@ -216,6 +220,7 @@ def trainingAccuracy():
     with torch.no_grad():
         for data in trainDataLoader:
             images, labels = data
+            images, labels = images.to(device), labels.to(device)
             # run the model on the train set to predict labels
             outputs = model(images)
             # the label with the highest value will be predicted
@@ -227,7 +232,7 @@ def trainingAccuracy():
     accuracy = 100 * accuracy / total
     return accuracy
 
-def validateAccuracy():
+def validateAccuracy(device):
     model.eval()
     accuracy = 0.0
     total = 0.0
@@ -235,6 +240,7 @@ def validateAccuracy():
     with torch.no_grad():
         for data in validDataLoader:
             images, labels = data
+            images, labels = images.to(device), labels.to(device)
             # run the model on the test set to predict labels
             outputs = model(images)
             # the label with the highest value will be predicted
@@ -258,7 +264,7 @@ def plotAccuracies(trainAccuracies, validAccuracies):
     ax1.legend()
 
 # Training function. We simply have to loop over our data iterator and feed the inputs to the network and optimize.
-def train(save_model_path, bestAccuracy = 0.0):
+def train(device, save_model_path, bestAccuracy = 0.0):
     startTime = time.time()
     lastCheckpointTime = startTime
     trainAccuracies = []
@@ -287,7 +293,7 @@ def train(save_model_path, bestAccuracy = 0.0):
             # Predict classes using images from the training set
             outputs = model(images)
             # Compute the loss based on model output and real labels
-            loss = lossFunction(outputs, labels)
+            loss = lossFunction(outputs.to(device), labels)
             # Back-propagate the loss
             loss.backward()
             # adjust parameters based on the calculated gradients
@@ -300,9 +306,9 @@ def train(save_model_path, bestAccuracy = 0.0):
                 runningLoss = 0.0
 
         # Compute and print the average accuracy fo this epoch when tested over all validation images
-        trainAccuracy = trainingAccuracy()
+        trainAccuracy = trainingAccuracy(device)
         trainAccuracies.append(trainAccuracy)
-        validAccuracy = validateAccuracy()
+        validAccuracy = validateAccuracy(device)
         validAccuracies.append(validAccuracy)
         plotAccuracies(trainAccuracies, validAccuracies)
         print(
@@ -346,10 +352,11 @@ def train(save_model_path, bestAccuracy = 0.0):
             bestAccuracy = validAccuracy
 
 # Function to test the model with a batch of images and show the labels predictions
-def testBatch():
+def testBatch(device):
     # get batch of images from the test DataLoader
     dataIter = iter(testDataLoader)
     images, labels = next(dataIter)
+    images, labels = images.to(device), labels.to(device)
     showImage(torchvision.utils.make_grid(images))
     print(
         "Real classes: ",
@@ -368,10 +375,11 @@ def testBatch():
     )
 
 # Function to validate the model with a batch of images from the validation set.
-def validBatch():
+def validBatch(device):
     model.eval()
     dataIter = iter(validDataLoader)
     images, labels = next(dataIter)
+    images, labels = images.to(device), labels.to(device)
     showImage(torchvision.utils.make_grid(images))
     print(
         "Real classes: ",
@@ -384,7 +392,7 @@ def validBatch():
         " ".join(f"{predicted[j]}" for j in range(BATCH_SIZE)),
     )
 
-def trainOurModel(save_model_path = "firstF102Model.pth"):
+def trainOurModel(device, save_model_path = "firstF102Model.pth"):
     # best_accurracy = 0.0
     # if os.path.isfile(model_path):
     #     best_model = ConvNet()
@@ -392,29 +400,34 @@ def trainOurModel(save_model_path = "firstF102Model.pth"):
     #     best_model.load_state_dict(torch.load(model_path))
     #     best_accurracy = validateAccuracy(best_model)
 
+    # Define your execution device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("The model will be running on", device, "device")
+
     # Let's build our model
-    train(save_model_path, 0.0)
+    train(device, save_model_path, 0.0)
     print("Finished Training")
 
     # Test which classes performed well
-    validateAccuracy()
+    validateAccuracy(device)
 
     # Let's load the model we just created and test the accuracy per label
     # Optimizer
     model.load_state_dict(torch.load(save_model_path))
 
     # Test with batch of images
-    validBatch()
+    validBatch(device)
 
 # Commented out IPython magic to ensure Python compatibility.
 # Function to test what classes performed well
-def testClasses(model):
+def testClasses(device):
     model.eval()
     class_correct = list(0.0 for i in range(NUM_OF_CLASSES))
     class_total = list(0.0 for i in range(NUM_OF_CLASSES))
     with torch.no_grad():
         for data in testDataLoader:
             images, labels = data
+            images, labels = images.to(device), labels.to(device)
             outputs = model(images)
             _, predicted = torch.max(outputs, 1)
             c = (predicted == labels).squeeze()
@@ -432,3 +445,5 @@ def testClasses(model):
 # Begin the training
 trainOurModel("firstF102Model.pth")
 # testClasses()
+
+gc.collect()
